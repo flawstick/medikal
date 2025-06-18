@@ -11,6 +11,7 @@ import Link from "next/link"
 
 interface Order {
   id: number
+  customer_id: string
   client_name: string | null
   client_phone: string | null
   address: string
@@ -21,6 +22,7 @@ interface Order {
   time_delivered: string | null
   created_at: string
   updated_at: string
+  metadata?: any
 }
 
 const DASHBOARD_ITEMS_LIMIT = 5

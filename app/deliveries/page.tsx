@@ -1,11 +1,20 @@
+"use client"
+
+import { useState } from "react"
 import { DeliveriesTable } from "@/components/deliveries-table"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Plus, Search } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Search, Filter, ArrowUpDown } from "lucide-react"
 import Link from "next/link"
 
 export default function DeliveriesPage() {
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [sortBy, setSortBy] = useState("created_at")
+  const [sortOrder, setSortOrder] = useState("desc")
+  const [searchQuery, setSearchQuery] = useState("")
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col items-end gap-2 md:flex-row md:justify-between md:items-center">
@@ -22,20 +31,94 @@ export default function DeliveriesPage() {
       </div>
 
       <Card className="shadow-sm">
-        {" "}
-        {/* Ensure shadow class */}
-        <CardHeader className="flex flex-row items-center justify-between gap-4 !pb-4">
-          {" "}
-          {/* Improved header layout */}
-          <CardTitle className="text-right text-xl">כל המשלוחים</CardTitle>
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />{" "}
-            {/* Adjusted for RTL */}
-            <Input placeholder="חפש משלוחים..." className="pr-10 text-right" /> {/* Adjusted for RTL */}
+        <CardHeader className="space-y-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-right text-xl">כל המשלוחים</CardTitle>
+            {(statusFilter !== "all" || searchQuery) && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>מסננים פעילים:</span>
+                {statusFilter !== "all" && (
+                  <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
+                    סטטוס: {statusFilter === "unassigned" ? "ללא הקצאה" : 
+                             statusFilter === "waiting" ? "ממתין" :
+                             statusFilter === "in_progress" ? "בדרך" :
+                             statusFilter === "completed" ? "הושלם" : "בעיה"}
+                  </span>
+                )}
+                {searchQuery && (
+                  <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
+                    חיפוש: "{searchQuery}"
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Filters and Search */}
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            {/* Search */}
+            <div className="relative flex-1 max-w-xs order-3 md:order-1">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="חפש משלוחים..." 
+                className="pr-10 text-right"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            {/* Filter and Sort Controls */}
+            <div className="flex gap-2 order-1 md:order-2">
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-40">
+                  <Filter className="h-4 w-4 ml-2" />
+                  <SelectValue placeholder="סטטוס" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">כל הסטטוסים</SelectItem>
+                  <SelectItem value="unassigned">ללא הקצאה</SelectItem>
+                  <SelectItem value="waiting">ממתין</SelectItem>
+                  <SelectItem value="in_progress">בדרך</SelectItem>
+                  <SelectItem value="completed">הושלם</SelectItem>
+                  <SelectItem value="problem">בעיה</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Sort By */}
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-40">
+                  <ArrowUpDown className="h-4 w-4 ml-2" />
+                  <SelectValue placeholder="מיון לפי" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at">תאריך יצירה</SelectItem>
+                  <SelectItem value="updated_at">עדכון אחרון</SelectItem>
+                  <SelectItem value="time_delivered">זמן משלוח</SelectItem>
+                  <SelectItem value="id">מספר משלוח</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Sort Order */}
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">חדש לישן</SelectItem>
+                  <SelectItem value="asc">ישן לחדש</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <DeliveriesTable />
+          <DeliveriesTable 
+            statusFilter={statusFilter}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            searchQuery={searchQuery}
+          />
         </CardContent>
       </Card>
     </div>

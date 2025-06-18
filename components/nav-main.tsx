@@ -1,34 +1,38 @@
-"use client"
+"use client";
 
-import type { LucideIcon } from "lucide-react"
-import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
+import type { LucideIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 
 export interface NavItem {
-  title: string
-  url: string
-  icon: LucideIcon
-  isActive?: boolean
+  title: string;
+  url: string;
+  icon: LucideIcon;
+  isActive?: boolean;
 }
 
 export function NavMain({ items }: { items: NavItem[] }) {
-  const pathname = usePathname()
-  const [activeRect, setActiveRect] = useState<DOMRect | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const pathname = usePathname();
+  const [activeRect, setActiveRect] = useState<DOMRect | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const activeButton = menuRef.current?.querySelector('[data-active="true"]')
+    const activeButton = menuRef.current?.querySelector('[data-active="true"]');
     if (activeButton) {
-      const rect = activeButton.getBoundingClientRect()
-      const menuRect = menuRef.current!.getBoundingClientRect()
+      const rect = activeButton.getBoundingClientRect();
+      const menuRect = menuRef.current!.getBoundingClientRect();
       setActiveRect({
         ...rect,
         top: rect.top - menuRect.top,
-        left: rect.left - menuRect.left
-      } as DOMRect)
+        left: rect.left - menuRect.left,
+      } as DOMRect);
     }
-  }, [pathname])
+  }, [pathname]);
 
   return (
     <SidebarMenu ref={menuRef} className="relative">
@@ -38,12 +42,13 @@ export function NavMain({ items }: { items: NavItem[] }) {
           style={{
             width: activeRect.width,
             height: activeRect.height,
-            transform: `translate(${activeRect.left}px, ${activeRect.top}px)`
+            transform: `translate(${activeRect.left}px, ${activeRect.top}px)`,
           }}
         />
       )}
       {items.map((item) => {
-        const isActive = item.url === "/" ? pathname === "/" : pathname.startsWith(item.url)
+        const isActive =
+          item.url === "/" ? pathname === "/" : pathname.startsWith(item.url);
 
         return (
           <SidebarMenuItem key={item.title}>
@@ -54,7 +59,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
               className={`
                 justify-start text-right transition-colors relative z-10
                 hover:bg-muted hover:text-foreground
-                ${isActive ? "text-primary-foreground" : ""}
+                ${isActive ? "text-primary" : ""}
               `}
             >
               <a href={item.url}>
@@ -63,8 +68,8 @@ export function NavMain({ items }: { items: NavItem[] }) {
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
-        )
+        );
       })}
     </SidebarMenu>
-  )
+  );
 }

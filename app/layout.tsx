@@ -2,10 +2,10 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Toaster } from "@/components/ui/toaster"
+import { Providers } from "@/components/providers"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <Providers>
           <SidebarProvider defaultOpen={false}>
             <AppSidebar />
             <SidebarInset className="flex flex-col min-h-screen">
@@ -31,7 +31,7 @@ export default function RootLayout({
             </SidebarInset>
           </SidebarProvider>
           <Toaster />
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )
