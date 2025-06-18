@@ -5,23 +5,32 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { ArrowRight, Edit, Trash2, Calendar, Clock, Package, User, Phone, MapPin, Car, FileText } from "lucide-react"
 import Link from "next/link"
 
-interface Order {
+interface Mission {
   id: number
-  customer_id: string
-  client_name: string | null
-  client_phone: string | null
-  address: string
-  packages_count: number
+  type: string
+  subtype: string | null
+  address: {
+    address: string
+    city: string
+    zip_code: string
+  }
   driver: string | null
   car_number: string | null
   status: "unassigned" | "waiting" | "in_progress" | "completed" | "problem"
-  time_delivered: string | null
+  date_expected: string | null
+  completed_at: string | null
   created_at: string
   updated_at: string
+  certificates: any[] | null
+  metadata?: {
+    client_name?: string
+    phone_number?: string
+  }
 }
 
 const getStatusColor = (status: string) => {
@@ -69,31 +78,31 @@ const formatDateTime = (dateString: string) => {
   }
 }
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function MissionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
   const router = useRouter()
-  const [order, setOrder] = useState<Order | null>(null)
+  const [mission, setMission] = useState<Mission | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchOrder()
+    fetchMission()
   }, [resolvedParams.id])
 
-  const fetchOrder = async () => {
+  const fetchMission = async () => {
     try {
       const response = await fetch(`/api/orders/${resolvedParams.id}`)
       if (response.ok) {
         const data = await response.json()
-        setOrder(data)
+        setMission(data)
       } else if (response.status === 404) {
-        setError("משלוח לא נמצא")
+        setError("משימה לא נמצאה")
       } else {
-        setError("שגיאה בטעינת המשלוח")
+        setError("שגיאה בטעינת המשימה")
       }
     } catch (error) {
-      console.error("Error fetching order:", error)
-      setError("שגיאה בטעינת המשלוח")
+      console.error("Error fetching mission:", error)
+      setError("שגיאה בטעינת המשימה")
     } finally {
       setLoading(false)
     }
@@ -102,22 +111,123 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="text-right space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+
+        {/* Status and Actions Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-20" />
+          </div>
+        </div>
+
+        {/* Cards Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Client Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-right flex items-center gap-2">
+                <User className="h-5 w-5" />
+                פרטי לקוח
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">שם לקוח:</span>
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">טלפון:</span>
+                  <Skeleton className="h-4 w-28" />
+                </div>
+                <div className="flex items-start justify-between">
+                  <span className="text-muted-foreground">כתובת:</span>
+                  <div className="text-right space-y-1">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mission Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-right flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                פרטי משימה
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">תעודות:</span>
+                  <Skeleton className="h-4 w-8" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">נהג:</span>
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">מספר רכב:</span>
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">תאריך צפוי:</span>
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Timeline Card */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-right flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                ציר זמן
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="w-2 h-2 rounded-full" />
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-48" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
   }
 
-  if (error || !order) {
+  if (error || !mission) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="outline" asChild>
             <Link href="/deliveries">
               <ArrowRight className="ml-2 h-4 w-4" />
-              חזרה למשלוחים
+              חזרה למשימות
             </Link>
           </Button>
         </div>
@@ -132,22 +242,24 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     )
   }
 
-  const createdDate = formatDateTime(order.created_at)
-  const updatedDate = formatDateTime(order.updated_at)
-  const deliveredDate = order.time_delivered ? formatDateTime(order.time_delivered) : null
+  const createdDate = formatDateTime(mission.created_at)
+  const updatedDate = formatDateTime(mission.updated_at)
+  const deliveredDate = mission.completed_at ? formatDateTime(mission.completed_at) : null
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="text-right">
-          <h1 className="text-3xl font-bold tracking-tight">פרטי משלוח #{order.id}</h1>
-          <p className="text-muted-foreground mt-1">מזהה לקוח: {order.customer_id}</p>
+          <h1 className="text-3xl font-bold tracking-tight">פרטי משימה #{mission.id}</h1>
+          <p className="text-muted-foreground mt-1">
+            {mission.type}{mission.subtype && ` - ${mission.subtype}`}
+          </p>
         </div>
         <Button variant="outline" asChild>
           <Link href="/deliveries">
             <ArrowRight className="ml-2 h-4 w-4" />
-            חזרה למשלוחים
+            חזרה למשימות
           </Link>
         </Button>
       </div>
@@ -155,12 +267,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       {/* Status and Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Badge className={`${getStatusColor(order.status)} px-3 py-1`}>
-            {getStatusText(order.status)}
+          <Badge className={`${getStatusColor(mission.status)} px-3 py-1`}>
+            {getStatusText(mission.status)}
           </Badge>
           {deliveredDate && (
             <div className="text-sm text-muted-foreground">
-              נמסר ב-{deliveredDate.date} בשעה {deliveredDate.time}
+              הושלם ב-{deliveredDate.date} בשעה {deliveredDate.time}
             </div>
           )}
         </div>
@@ -169,7 +281,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <Edit className="ml-2 h-4 w-4" />
             עריכה
           </Button>
-          <Button variant="outline" size="sm" className="text-red-600 hover:text-red-600">
+          <Button variant="outline" size="sm" className="text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950">
             <Trash2 className="ml-2 h-4 w-4" />
             מחיקה
           </Button>
@@ -190,15 +302,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">שם לקוח:</span>
                 <span className="font-medium">
-                  {order.client_name || <span className="text-muted-foreground">לא צוין</span>}
+                  {mission.metadata?.client_name || <span className="text-muted-foreground">לא צוין</span>}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">טלפון:</span>
                 <span className="font-medium">
-                  {order.client_phone ? (
-                    <a href={`tel:${order.client_phone}`} className="text-blue-600 hover:underline">
-                      {order.client_phone}
+                  {mission.metadata?.phone_number ? (
+                    <a href={`tel:${mission.metadata.phone_number}`} className="text-blue-600 hover:underline">
+                      {mission.metadata.phone_number}
                     </a>
                   ) : (
                     <span className="text-muted-foreground">לא צוין</span>
@@ -209,12 +321,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <span className="text-muted-foreground">כתובת:</span>
                 <span className="font-medium text-right max-w-60">
                   <a 
-                    href={`https://maps.google.com/?q=${encodeURIComponent(order.address)}`}
+                    href={`https://maps.google.com/?q=${encodeURIComponent(`${mission.address.address}, ${mission.address.city}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline"
                   >
-                    {order.address}
+                    {mission.address.address}
+                    <br />
+                    {mission.address.city} {mission.address.zip_code}
                   </a>
                 </span>
               </div>
@@ -222,32 +336,40 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </CardContent>
         </Card>
 
-        {/* Delivery Information */}
+        {/* Mission Information */}
         <Card>
           <CardHeader>
             <CardTitle className="text-right flex items-center gap-2">
               <Package className="h-5 w-5" />
-              פרטי משלוח
+              פרטי משימה
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">מספר חבילות:</span>
-                <span className="font-medium">{order.packages_count}</span>
+                <span className="text-muted-foreground">תעודות:</span>
+                <span className="font-medium">{mission.certificates?.length || 0}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">נהג:</span>
                 <span className="font-medium">
-                  {order.driver || <span className="text-muted-foreground">לא הוקצה</span>}
+                  {mission.driver || <span className="text-muted-foreground">לא הוקצה</span>}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">מספר רכב:</span>
                 <span className="font-medium">
-                  {order.car_number || <span className="text-muted-foreground">לא הוקצה</span>}
+                  {mission.car_number || <span className="text-muted-foreground">לא הוקצה</span>}
                 </span>
               </div>
+              {mission.date_expected && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">תאריך צפוי:</span>
+                  <span className="font-medium">
+                    {new Date(mission.date_expected).toLocaleDateString("he-IL")}
+                  </span>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -265,14 +387,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex items-center gap-4">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <div className="flex-1">
-                  <div className="font-medium">משלוח נוצר</div>
+                  <div className="font-medium">משימה נוצרה</div>
                   <div className="text-sm text-muted-foreground">
                     {createdDate.date} בשעה {createdDate.time}
                   </div>
                 </div>
               </div>
               
-              {order.updated_at !== order.created_at && (
+              {mission.updated_at !== mission.created_at && (
                 <div className="flex items-center gap-4">
                   <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                   <div className="flex-1">
@@ -288,7 +410,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="flex items-center gap-4">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <div className="flex-1">
-                    <div className="font-medium">משלוח הושלם</div>
+                    <div className="font-medium">משימה הושלמה</div>
                     <div className="text-sm text-muted-foreground">
                       {deliveredDate.date} בשעה {deliveredDate.time}
                     </div>

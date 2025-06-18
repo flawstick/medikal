@@ -2,7 +2,6 @@ import {
   pgTable,
   bigserial,
   text,
-  integer,
   timestamp,
   jsonb,
   index,
@@ -10,15 +9,13 @@ import {
   boolean,
 } from "drizzle-orm/pg-core";
 
-export const orders = pgTable(
-  "orders",
+export const missions = pgTable(
+  "missions",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    customer_id: text("customer_id"),
-    client_name: text("client_name"),
-    client_phone: text("client_phone"),
-    address: text("address").notNull(),
-    packages_count: integer("packages_count").notNull(),
+    type: text("type").notNull(),
+    subtype: text("subtype"),
+    address: jsonb("address").notNull(),
     driver: text("driver"),
     car_number: text("car_number"),
     status: text("status", {
@@ -26,17 +23,24 @@ export const orders = pgTable(
     })
       .notNull()
       .default("unassigned"),
-    time_delivered: timestamp("time_delivered", { withTimezone: true }),
+    date_expected: timestamp("date_expected", { withTimezone: true }),
+    completed_at: timestamp("completed_at", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    certificates: jsonb("certificates"),
     metadata: jsonb("metadata"),
   },
   (table) => ({
-    statusIdx: index("idx_orders_status").on(table.status),
-    driverIdx: index("idx_orders_driver").on(table.driver),
-    createdAtIdx: index("idx_orders_created_at").on(table.created_at),
-    customerIdIdx: index("idx_orders_customer_id").on(table.customer_id),
-    metadataIdx: index("idx_orders_metadata").on(table.metadata),
+    statusIdx: index("idx_missions_status").on(table.status),
+    typeIdx: index("idx_missions_type").on(table.type),
+    driverIdx: index("idx_missions_driver").on(table.driver),
+    createdAtIdx: index("idx_missions_created_at").on(table.created_at),
+    dateExpectedIdx: index("idx_missions_date_expected").on(
+      table.date_expected,
+    ),
+    addressIdx: index("idx_missions_address").on(table.address),
+    certificatesIdx: index("idx_missions_certificates").on(table.certificates),
+    metadataIdx: index("idx_missions_metadata").on(table.metadata),
   }),
 );
 
@@ -60,7 +64,52 @@ export const accounts = pgTable(
   }),
 );
 
-export type Order = typeof orders.$inferSelect;
-export type NewOrder = typeof orders.$inferInsert;
+export const drivers = pgTable(
+  "drivers",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    name: text("name").notNull(),
+    phone: text("phone"),
+    email: text("email"),
+    license_number: text("license_number"),
+    is_active: boolean("is_active").notNull().default(true),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    metadata: jsonb("metadata"),
+  },
+  (table) => ({
+    nameIdx: index("idx_drivers_name").on(table.name),
+    isActiveIdx: index("idx_drivers_is_active").on(table.is_active),
+    phoneIdx: index("idx_drivers_phone").on(table.phone),
+  }),
+);
+
+export const cars = pgTable(
+  "cars",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    plate_number: text("plate_number").notNull().unique(),
+    make: text("make"),
+    model: text("model"),
+    year: text("year"),
+    color: text("color"),
+    is_active: boolean("is_active").notNull().default(true),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    metadata: jsonb("metadata"),
+  },
+  (table) => ({
+    plateNumberIdx: index("idx_cars_plate_number").on(table.plate_number),
+    isActiveIdx: index("idx_cars_is_active").on(table.is_active),
+    makeModelIdx: index("idx_cars_make_model").on(table.make, table.model),
+  }),
+);
+
+export type Mission = typeof missions.$inferSelect;
+export type NewMission = typeof missions.$inferInsert;
+export type Driver = typeof drivers.$inferSelect;
+export type NewDriver = typeof drivers.$inferInsert;
+export type Car = typeof cars.$inferSelect;
+export type NewCar = typeof cars.$inferInsert;
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;

@@ -4,42 +4,35 @@ import { db } from "@/server/db";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-
+    
     // Get query parameters
     const status = searchParams.get("status");
-    const type = searchParams.get("type");
     const sortBy = searchParams.get("sortBy") || "created_at";
     const sortOrder = searchParams.get("sortOrder") || "desc";
-
+    
     // Start building the query
-    let query = db.from("missions").select("*");
-
+    let query = db.from("drivers").select("*");
+    
     // Apply status filter if provided
-    if (status && status !== "all") {
-      query = query.eq("status", status);
+    if (status === "active") {
+      query = query.eq("is_active", true);
+    } else if (status === "inactive") {
+      query = query.eq("is_active", false);
     }
-
-    // Apply type filter if provided
-    if (type && type !== "all") {
-      query = query.eq("type", type);
-    }
-
+    
     // Apply sorting
     const ascending = sortOrder === "asc";
-
+    
     // Handle different sort options
     switch (sortBy) {
+      case "name":
+        query = query.order("name", { ascending });
+        break;
       case "created_at":
         query = query.order("created_at", { ascending });
         break;
       case "updated_at":
         query = query.order("updated_at", { ascending });
-        break;
-      case "completed_at":
-        query = query.order("completed_at", { ascending, nullsFirst: !ascending });
-        break;
-      case "date_expected":
-        query = query.order("date_expected", { ascending, nullsFirst: !ascending });
         break;
       case "id":
         query = query.order("id", { ascending });
@@ -48,21 +41,21 @@ export async function GET(request: NextRequest) {
         query = query.order("created_at", { ascending: false }); // Default to newest first
     }
 
-    const { data: missions, error } = await query;
+    const { data: drivers, error } = await query;
 
     if (error) {
       console.error("Supabase error:", error);
       return NextResponse.json(
-        { error: "Failed to fetch missions" },
+        { error: "Failed to fetch drivers" },
         { status: 500 },
       );
     }
 
-    return NextResponse.json(missions);
+    return NextResponse.json(drivers);
   } catch (error) {
-    console.error("Error fetching missions:", error);
+    console.error("Error fetching drivers:", error);
     return NextResponse.json(
-      { error: "Failed to fetch missions" },
+      { error: "Failed to fetch drivers" },
       { status: 500 },
     );
   }
@@ -72,39 +65,30 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      type,
-      subtype,
-      address,
-      driver,
-      car_number,
-      date_expected,
-      certificates,
+      name,
+      phone,
+      email,
+      license_number,
       metadata,
     } = body;
 
     // Validate required fields
-    if (!type || !address) {
+    if (!name || !name.trim()) {
       return NextResponse.json(
-        { error: "Type and address are required" },
+        { error: "Name is required" },
         { status: 400 },
       );
     }
 
-    // Determine status based on assignment
-    const status = driver && car_number ? "waiting" : "unassigned";
-
     const { data, error } = await db
-      .from("missions")
+      .from("drivers")
       .insert([
         {
-          type,
-          subtype: subtype || null,
-          address,
-          driver: driver || null,
-          car_number: car_number || null,
-          status,
-          date_expected: date_expected ? new Date(date_expected).toISOString() : null,
-          certificates: certificates || null,
+          name: name.trim(),
+          phone: phone || null,
+          email: email || null,
+          license_number: license_number || null,
+          is_active: true,
           metadata: metadata || null,
         },
       ])
@@ -114,16 +98,16 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("Supabase error:", error);
       return NextResponse.json(
-        { error: "Failed to create mission" },
+        { error: "Failed to create driver" },
         { status: 500 },
       );
     }
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
-    console.error("Error creating mission:", error);
+    console.error("Error creating driver:", error);
     return NextResponse.json(
-      { error: "Failed to create mission" },
+      { error: "Failed to create driver" },
       { status: 500 },
     );
   }

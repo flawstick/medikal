@@ -12,19 +12,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 
-interface Order {
+interface Mission {
   id: number
-  customer_id: string
-  client_name: string | null
-  client_phone: string | null
-  address: string
-  packages_count: number
+  type: string
+  subtype: string | null
+  address: {
+    address: string
+    city: string
+    zip_code: string
+  }
   driver: string | null
   car_number: string | null
   status: "unassigned" | "waiting" | "in_progress" | "completed" | "problem"
-  time_delivered: string | null
+  date_expected: string | null
+  completed_at: string | null
   created_at: string
   updated_at: string
+  certificates: any[] | null
   metadata?: any
 }
 
@@ -82,13 +86,12 @@ function TableSkeleton() {
         <TableHeader>
           <TableRow>
             <TableHead className="text-right">מזהה</TableHead>
-            <TableHead className="text-right">מזהה לקוח</TableHead>
-            <TableHead className="text-right">לקוח</TableHead>
+            <TableHead className="text-right">סוג</TableHead>
             <TableHead className="text-right">כתובת</TableHead>
-            <TableHead className="text-right">חבילות</TableHead>
+            <TableHead className="text-right">נהג</TableHead>
             <TableHead className="text-right hidden md:table-cell">רכב</TableHead>
             <TableHead className="text-right w-24">סטטוס</TableHead>
-            <TableHead className="text-right hidden lg:table-cell">זמן נמסר</TableHead>
+            <TableHead className="text-right hidden lg:table-cell">הושלם ב</TableHead>
             <TableHead className="text-right hidden sm:table-cell">זמן נוצר</TableHead>
             <TableHead className="text-right">פעולות</TableHead>
           </TableRow>
@@ -100,9 +103,6 @@ function TableSkeleton() {
                 <Skeleton className="h-4 w-12" />
               </TableCell>
               <TableCell className="text-right h-16">
-                <Skeleton className="h-4 w-20" />
-              </TableCell>
-              <TableCell className="text-right h-16">
                 <div className="space-y-1">
                   <Skeleton className="h-3 w-20" />
                   <Skeleton className="h-3 w-16" />
@@ -112,7 +112,7 @@ function TableSkeleton() {
                 <Skeleton className="h-4 w-32" />
               </TableCell>
               <TableCell className="text-right h-16">
-                <Skeleton className="h-4 w-6" />
+                <Skeleton className="h-4 w-20" />
               </TableCell>
               <TableCell className="text-right h-16 hidden md:table-cell">
                 <Skeleton className="h-4 w-16" />
@@ -145,39 +145,42 @@ function TableSkeleton() {
 
 interface DeliveriesTableProps {
   statusFilter?: string
+  typeFilter?: string
   sortBy?: string
   sortOrder?: string
   searchQuery?: string
 }
 
 export function DeliveriesTable({ 
-  statusFilter = "all", 
+  statusFilter = "all",
+  typeFilter = "all", 
   sortBy = "created_at", 
   sortOrder = "desc", 
   searchQuery = "" 
 }: DeliveriesTableProps) {
   const router = useRouter()
-  const [orders, setOrders] = useState<Order[]>([])
+  const [missions, setMissions] = useState<Mission[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null)
+  const [missionToDelete, setMissionToDelete] = useState<Mission | null>(null)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
-  const [orderToUpdate, setOrderToUpdate] = useState<Order | null>(null)
+  const [missionToUpdate, setMissionToUpdate] = useState<Mission | null>(null)
   const [newStatus, setNewStatus] = useState<string>("")
 
   useEffect(() => {
-    fetchOrders()
-  }, [statusFilter, sortBy, sortOrder])
+    fetchMissions()
+  }, [statusFilter, typeFilter, sortBy, sortOrder])
 
   useEffect(() => {
     setCurrentPage(1) // Reset to first page when filters change
-  }, [statusFilter, sortBy, sortOrder, searchQuery])
+  }, [statusFilter, typeFilter, sortBy, sortOrder, searchQuery])
 
-  const fetchOrders = async () => {
+  const fetchMissions = async () => {
     try {
       const params = new URLSearchParams({
         status: statusFilter,
+        type: typeFilter,
         sortBy,
         sortOrder,
       })
@@ -185,10 +188,10 @@ export function DeliveriesTable({
       const response = await fetch(`/api/orders?${params}`)
       if (response.ok) {
         const data = await response.json()
-        setOrders(data)
+        setMissions(data)
       }
     } catch (error) {
-      console.error("Error fetching orders:", error)
+      console.error("Error fetching missions:", error)
     } finally {
       setLoading(false)
     }
@@ -198,24 +201,24 @@ export function DeliveriesTable({
     return <TableSkeleton />
   }
 
-  // Filter orders based on search query
-  const filteredOrders = orders.filter(order => {
+  // Filter missions based on search query
+  const filteredMissions = missions.filter(mission => {
     if (!searchQuery) return true
     
     const searchLower = searchQuery.toLowerCase()
+    const addressString = `${mission.address.address} ${mission.address.city} ${mission.address.zip_code}`
     return (
-      order.id.toString().includes(searchLower) ||
-      order.customer_id.toLowerCase().includes(searchLower) ||
-      order.client_name?.toLowerCase().includes(searchLower) ||
-      order.client_phone?.toLowerCase().includes(searchLower) ||
-      order.address.toLowerCase().includes(searchLower) ||
-      order.driver?.toLowerCase().includes(searchLower) ||
-      order.car_number?.toLowerCase().includes(searchLower)
+      mission.id.toString().includes(searchLower) ||
+      mission.type.toLowerCase().includes(searchLower) ||
+      mission.subtype?.toLowerCase().includes(searchLower) ||
+      addressString.toLowerCase().includes(searchLower) ||
+      mission.driver?.toLowerCase().includes(searchLower) ||
+      mission.car_number?.toLowerCase().includes(searchLower)
     )
   })
 
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)
-  const currentOrders = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(filteredMissions.length / ITEMS_PER_PAGE)
+  const currentMissions = filteredMissions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   const handlePreviousPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1))
@@ -225,75 +228,75 @@ export function DeliveriesTable({
     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
   }
 
-  const handleDeleteClick = (order: Order) => {
-    setOrderToDelete(order)
+  const handleDeleteClick = (mission: Mission) => {
+    setMissionToDelete(mission)
     setDeleteDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
-    if (!orderToDelete) return
+    if (!missionToDelete) return
 
     try {
-      const response = await fetch(`/api/orders/${orderToDelete.id}`, {
+      const response = await fetch(`/api/orders/${missionToDelete.id}`, {
         method: 'DELETE',
       })
 
       if (response.ok) {
-        // Remove the deleted order from state
-        setOrders(orders => orders.filter(order => order.id !== orderToDelete.id))
+        // Remove the deleted mission from state
+        setMissions(missions => missions.filter(mission => mission.id !== missionToDelete.id))
         setDeleteDialogOpen(false)
-        setOrderToDelete(null)
+        setMissionToDelete(null)
       } else {
-        console.error('Failed to delete order')
+        console.error('Failed to delete mission')
       }
     } catch (error) {
-      console.error('Error deleting order:', error)
+      console.error('Error deleting mission:', error)
     }
   }
 
-  const handleStatusUpdateClick = (order: Order) => {
-    setOrderToUpdate(order)
-    setNewStatus(order.status)
+  const handleStatusUpdateClick = (mission: Mission) => {
+    setMissionToUpdate(mission)
+    setNewStatus(mission.status)
     setStatusDialogOpen(true)
   }
 
   const handleStatusUpdateConfirm = async () => {
-    if (!orderToUpdate || !newStatus) return
+    if (!missionToUpdate || !newStatus) return
 
     try {
-      const response = await fetch(`/api/orders/${orderToUpdate.id}`, {
+      const response = await fetch(`/api/orders/${missionToUpdate.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...orderToUpdate,
+          ...missionToUpdate,
           status: newStatus,
-          time_delivered: newStatus === 'completed' && !orderToUpdate.time_delivered 
+          completed_at: newStatus === 'completed' && !missionToUpdate.completed_at 
             ? new Date().toISOString() 
-            : orderToUpdate.time_delivered,
+            : missionToUpdate.completed_at,
         }),
       })
 
       if (response.ok) {
-        const updatedOrder = await response.json()
-        // Update the order in state
-        setOrders(orders => orders.map(order => 
-          order.id === orderToUpdate.id ? updatedOrder : order
+        const updatedMission = await response.json()
+        // Update the mission in state
+        setMissions(missions => missions.map(mission => 
+          mission.id === missionToUpdate.id ? updatedMission : mission
         ))
         setStatusDialogOpen(false)
-        setOrderToUpdate(null)
+        setMissionToUpdate(null)
         setNewStatus("")
       } else {
-        console.error('Failed to update order status')
+        console.error('Failed to update mission status')
       }
     } catch (error) {
-      console.error('Error updating order status:', error)
+      console.error('Error updating mission status:', error)
     }
   }
 
-  const handleViewDetails = (order: Order) => {
-    router.push(`/deliveries/${order.id}`)
+  const handleViewDetails = (mission: Mission) => {
+    router.push(`/deliveries/${mission.id}`)
   }
 
   return (
@@ -301,9 +304,9 @@ export function DeliveriesTable({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-right">מחיקת משלוח</AlertDialogTitle>
+            <AlertDialogTitle className="text-right">מחיקת משימה</AlertDialogTitle>
             <AlertDialogDescription className="text-right">
-              האם אתה בטוח שברצונך למחוק את משלוח #{orderToDelete?.id}?
+              האם אתה בטוח שברצונך למחוק את משימה #{missionToDelete?.id}?
               פעולה זו לא ניתנת לביטול.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -322,12 +325,13 @@ export function DeliveriesTable({
       <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-right">עדכון סטטוס משלוח</DialogTitle>
+            <DialogTitle className="text-right">עדכון סטטוס משימה</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="text-right">
               <p className="text-sm text-muted-foreground">
-                משלוח #{orderToUpdate?.id} - {orderToUpdate?.customer_id}
+                משימה #{missionToUpdate?.id} - {missionToUpdate?.type}
+                {missionToUpdate?.subtype && ` (${missionToUpdate.subtype})`}
               </p>
             </div>
             <div className="space-y-2">
@@ -363,53 +367,58 @@ export function DeliveriesTable({
           <TableHeader>
             <TableRow>
               <TableHead className="text-right">מזהה</TableHead>
-              <TableHead className="text-right">מזהה לקוח</TableHead>
-              <TableHead className="text-right">לקוח</TableHead>
+              <TableHead className="text-right">סוג</TableHead>
               <TableHead className="text-right">כתובת</TableHead>
-              <TableHead className="text-right">חבילות</TableHead>
+              <TableHead className="text-right">נהג</TableHead>
               <TableHead className="text-right hidden md:table-cell">רכב</TableHead>
               <TableHead className="text-right w-24">סטטוס</TableHead>
-              <TableHead className="text-right hidden lg:table-cell">זמן נמסר</TableHead>
+              <TableHead className="text-right hidden lg:table-cell">הושלם ב</TableHead>
               <TableHead className="text-right hidden sm:table-cell">זמן נוצר</TableHead>
               <TableHead className="text-right">פעולות</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentOrders.map((order) => (
-              <TableRow key={order.id} className="h-16">
-                <TableCell className="text-right font-medium h-16">#{order.id}</TableCell>
-                <TableCell className="text-right font-medium h-16 text-primary">
-                  <div className="text-sm font-mono">{order.customer_id}</div>
-                </TableCell>
+            {currentMissions.map((mission) => (
+              <TableRow key={mission.id} className="h-16">
+                <TableCell className="text-right font-medium h-16">#{mission.id}</TableCell>
                 <TableCell className="text-right h-16">
                   <div className="text-sm">
-                    <div className="truncate max-w-24 sm:max-w-32">
-                      {order.client_name || <span className="text-muted-foreground">לא צוין</span>}
-                    </div>
-                    {order.client_phone && (
-                      <div className="text-muted-foreground truncate max-w-24 sm:max-w-32">{order.client_phone}</div>
+                    <div className="font-medium">{mission.type}</div>
+                    {mission.subtype && (
+                      <div className="text-muted-foreground text-xs">{mission.subtype}</div>
                     )}
                   </div>
                 </TableCell>
                 <TableCell className="text-right h-16 max-w-32 sm:max-w-xs">
-                  <div className="truncate">{order.address}</div>
+                  <div className="text-sm">
+                    <div className="truncate">{mission.address.address}</div>
+                    <div className="text-muted-foreground text-xs truncate">
+                      {mission.address.city} {mission.address.zip_code}
+                    </div>
+                  </div>
                 </TableCell>
-                <TableCell className="text-right h-16">{order.packages_count}</TableCell>
+                <TableCell className="text-right h-16">
+                  <div className="text-sm">
+                    <div className="truncate max-w-24 sm:max-w-32">
+                      {mission.driver || <span className="text-muted-foreground">ללא הקצאה</span>}
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell className="text-right h-16 hidden md:table-cell">
-                  {order.car_number || <span className="text-muted-foreground">-</span>}
+                  {mission.car_number || <span className="text-muted-foreground">-</span>}
                 </TableCell>
                 <TableCell className="text-right h-16 w-24">
                   <Badge
-                    className={`${getStatusColor(order.status)} px-2 py-1 text-xs whitespace-nowrap w-full justify-center`}
+                    className={`${getStatusColor(mission.status)} px-2 py-1 text-xs whitespace-nowrap w-full justify-center`}
                   >
-                    {getStatusText(order.status)}
+                    {getStatusText(mission.status)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right h-16 hidden lg:table-cell">
-                  {order.time_delivered ? (
+                  {mission.completed_at ? (
                     <div className="text-sm">
-                      <div>{formatDate(order.time_delivered)}</div>
-                      <div className="text-muted-foreground">{formatTime(order.time_delivered)}</div>
+                      <div>{formatDate(mission.completed_at)}</div>
+                      <div className="text-muted-foreground">{formatTime(mission.completed_at)}</div>
                     </div>
                   ) : (
                     <span className="text-muted-foreground">-</span>
@@ -417,8 +426,8 @@ export function DeliveriesTable({
                 </TableCell>
                 <TableCell className="text-right h-16 hidden sm:table-cell">
                   <div className="text-sm">
-                    <div>{formatDate(order.created_at)}</div>
-                    <div className="text-muted-foreground">{formatTime(order.created_at)}</div>
+                    <div>{formatDate(mission.created_at)}</div>
+                    <div className="text-muted-foreground">{formatTime(mission.created_at)}</div>
                   </div>
                 </TableCell>
                 <TableCell className="h-16">
@@ -429,18 +438,18 @@ export function DeliveriesTable({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleViewDetails(order)}>
+                      <DropdownMenuItem onClick={() => handleViewDetails(mission)}>
                         <Eye className="mr-2 h-4 w-4" /> צפה בפרטים
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleStatusUpdateClick(order)}>
+                      <DropdownMenuItem onClick={() => handleStatusUpdateClick(mission)}>
                         <Edit className="mr-2 h-4 w-4" /> עדכן סטטוס
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
-                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                        onClick={() => handleDeleteClick(order)}
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                        onClick={() => handleDeleteClick(mission)}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" /> מחק משלוח
+                        <Trash2 className="mr-2 h-4 w-4" /> מחק משימה
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -448,21 +457,21 @@ export function DeliveriesTable({
               </TableRow>
             ))}
             {/* Fill empty rows to maintain consistent height */}
-            {currentOrders.length < ITEMS_PER_PAGE &&
-              Array.from({ length: ITEMS_PER_PAGE - currentOrders.length }).map((_, index) => (
+            {currentMissions.length < ITEMS_PER_PAGE &&
+              Array.from({ length: ITEMS_PER_PAGE - currentMissions.length }).map((_, index) => (
                 <TableRow key={`empty-${index}`} className="h-16">
-                  <TableCell className="h-16" colSpan={10}>
+                  <TableCell className="h-16" colSpan={9}>
                     &nbsp;
                   </TableCell>
                 </TableRow>
               ))}
             
             {/* Show no results message if filtered orders is empty */}
-            {filteredOrders.length === 0 && (
+            {filteredMissions.length === 0 && (
               <TableRow>
-                <TableCell className="h-32 text-center" colSpan={10}>
+                <TableCell className="h-32 text-center" colSpan={9}>
                   <div className="text-muted-foreground">
-                    {searchQuery ? "לא נמצאו תוצאות חיפוש" : "אין משלוחים להציג"}
+                    {searchQuery ? "לא נמצאו תוצאות חיפוש" : "אין משימות להציג"}
                   </div>
                 </TableCell>
               </TableRow>

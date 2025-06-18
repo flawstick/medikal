@@ -1,151 +1,151 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 
-// DELETE /api/orders/[id] - Delete a specific order
+// DELETE /api/orders/[id] - Delete a specific mission
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const orderId = parseInt(id);
+    const missionId = parseInt(id);
 
-    if (isNaN(orderId)) {
+    if (isNaN(missionId)) {
       return NextResponse.json(
-        { error: "Invalid order ID" },
-        { status: 400 }
+        { error: "Invalid mission ID" },
+        { status: 400 },
       );
     }
 
     const { error } = await db
-      .from("orders")
+      .from("missions")
       .delete()
-      .eq("id", orderId);
+      .eq("id", missionId);
 
     if (error) {
       console.error("Supabase error:", error);
       return NextResponse.json(
-        { error: "Failed to delete order" },
+        { error: "Failed to delete mission" },
         { status: 500 }
       );
     }
 
     return NextResponse.json(
-      { message: "Order deleted successfully" },
-      { status: 200 }
+      { message: "Mission deleted successfully" },
+      { status: 200 },
     );
   } catch (error) {
-    console.error("Error deleting order:", error);
+    console.error("Error deleting mission:", error);
     return NextResponse.json(
-      { error: "Failed to delete order" },
-      { status: 500 }
+      { error: "Failed to delete mission" },
+      { status: 500 },
     );
   }
 }
 
-// GET /api/orders/[id] - Get a specific order
+// GET /api/orders/[id] - Get a specific mission
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const orderId = parseInt(id);
+    const missionId = parseInt(id);
 
-    if (isNaN(orderId)) {
+    if (isNaN(missionId)) {
       return NextResponse.json(
-        { error: "Invalid order ID" },
-        { status: 400 }
+        { error: "Invalid mission ID" },
+        { status: 400 },
       );
     }
 
-    const { data: order, error } = await db
-      .from("orders")
+    const { data: mission, error } = await db
+      .from("missions")
       .select("*")
-      .eq("id", orderId)
+      .eq("id", missionId)
       .single();
 
     if (error) {
       console.error("Supabase error:", error);
       return NextResponse.json(
-        { error: "Order not found" },
+        { error: "Mission not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(order);
+    return NextResponse.json(mission);
   } catch (error) {
-    console.error("Error fetching order:", error);
+    console.error("Error fetching mission:", error);
     return NextResponse.json(
-      { error: "Failed to fetch order" },
-      { status: 500 }
+      { error: "Failed to fetch mission" },
+      { status: 500 },
     );
   }
 }
 
-// PUT /api/orders/[id] - Update a specific order
+// PUT /api/orders/[id] - Update a specific mission
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const orderId = parseInt(id);
+    const missionId = parseInt(id);
 
-    if (isNaN(orderId)) {
+    if (isNaN(missionId)) {
       return NextResponse.json(
-        { error: "Invalid order ID" },
-        { status: 400 }
+        { error: "Invalid mission ID" },
+        { status: 400 },
       );
     }
 
     const body = await request.json();
     const {
-      customer_id,
-      client_name,
-      client_phone,
+      type,
+      subtype,
       address,
-      packages_count,
       driver,
       car_number,
       status,
+      date_expected,
+      completed_at,
+      certificates,
       metadata,
-      time_delivered,
     } = body;
 
-    const { data: updatedOrder, error } = await db
-      .from("orders")
+    const { data: updatedMission, error } = await db
+      .from("missions")
       .update({
-        customer_id,
-        client_name: client_name || null,
-        client_phone: client_phone || null,
+        type,
+        subtype: subtype || null,
         address,
-        packages_count,
         driver: driver || null,
         car_number: car_number || null,
         status,
+        date_expected: date_expected ? new Date(date_expected).toISOString() : null,
+        completed_at: completed_at ? new Date(completed_at).toISOString() : null,
+        certificates: certificates || null,
         metadata: metadata || null,
-        time_delivered: time_delivered ? new Date(time_delivered).toISOString() : null,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", orderId)
+      .eq("id", missionId)
       .select()
       .single();
 
     if (error) {
       console.error("Supabase error:", error);
       return NextResponse.json(
-        { error: "Failed to update order" },
+        { error: "Failed to update mission" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json(updatedOrder);
+    return NextResponse.json(updatedMission);
   } catch (error) {
-    console.error("Error updating order:", error);
+    console.error("Error updating mission:", error);
     return NextResponse.json(
-      { error: "Failed to update order" },
-      { status: 500 }
+      { error: "Failed to update mission" },
+      { status: 500 },
     );
   }
 }
