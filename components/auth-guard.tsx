@@ -11,7 +11,7 @@ interface AuthGuardProps {
 
 const publicRoutes = ["/auth/signin", "/auth/error"]
 
-export default function AuthGuard({ children }: AuthGuardProps) {
+export function AuthGuard({ children }: AuthGuardProps) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()

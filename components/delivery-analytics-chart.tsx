@@ -94,7 +94,9 @@ export function DeliveryAnalyticsChart() {
           throw new Error('Failed to fetch orders')
         }
         
-        const orders: Order[] = await response.json()
+        const result = await response.json()
+        // Handle both old array format and new paginated format
+        const orders: Order[] = Array.isArray(result) ? result : result.data || []
         const transformedData = transformOrdersToChartData(orders)
         setChartData(transformedData)
       } catch (err) {

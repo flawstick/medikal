@@ -12,26 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-
-interface Mission {
-  id: number
-  type: string
-  subtype: string | null
-  address: {
-    address: string
-    city: string
-    zip_code: string
-  }
-  driver: string | null
-  car_number: string | null
-  status: "unassigned" | "waiting" | "in_progress" | "completed" | "problem"
-  date_expected: string | null
-  completed_at: string | null
-  created_at: string
-  updated_at: string
-  certificates: any[] | null
-  metadata?: any
-}
+import type { Mission, MissionStatus } from "@/lib/types"
 
 const DASHBOARD_ITEMS_LIMIT = 5
 
@@ -151,7 +132,9 @@ export function DashboardDeliveriesTable() {
     try {
       const response = await fetch("/api/orders")
       if (response.ok) {
-        const data = await response.json()
+        const result = await response.json()
+        // Handle both old array format and new paginated format
+        const data = Array.isArray(result) ? result : result.data || []
         // Show only the most recent missions for dashboard
         setMissions(data.slice(0, DASHBOARD_ITEMS_LIMIT))
       }

@@ -1,7 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { db } from "@/server/db";
+import { type NextRequest, NextResponse } from "next/server"
+import { db } from "@/server/db"
+import type { CreateDriverRequest, Driver, APIResponse } from "@/lib/types"
+import { validateDriver } from "@/lib/validation"
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse<Driver[] | APIResponse>> {
   try {
     const { searchParams } = new URL(request.url);
     
@@ -61,24 +63,29 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse<Driver | APIResponse>> {
   try {
-    const body = await request.json();
+    const body: CreateDriverRequest = await request.json()
+    
+    // Validate the request body
+    const validation = validateDriver(body)
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { 
+          error: "Validation failed", 
+          details: validation.errors.map(e => `${e.field}: ${e.message}`)
+        } as APIResponse,
+        { status: 400 },
+      )
+    }
+
     const {
       name,
       phone,
       email,
       license_number,
       metadata,
-    } = body;
-
-    // Validate required fields
-    if (!name || !name.trim()) {
-      return NextResponse.json(
-        { error: "Name is required" },
-        { status: 400 },
-      );
-    }
+    } = body
 
     const { data, error } = await db
       .from("drivers")

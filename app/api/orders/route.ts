@@ -1,7 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { db } from "@/server/db";
+import { type NextRequest, NextResponse } from "next/server"
+import { db } from "@/server/db"
+import type { CreateMissionRequest, Mission, APIResponse, PaginatedResponse } from "@/lib/types"
+import { validateMission } from "@/lib/validation"
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse<PaginatedResponse<Mission> | APIResponse>> {
   try {
     const { searchParams } = new URL(request.url);
 
@@ -10,6 +12,10 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type");
     const sortBy = searchParams.get("sortBy") || "created_at";
     const sortOrder = searchParams.get("sortOrder") || "desc";
+    const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100); // Max 100 items per page
+    const offset = (page - 1) * limit;
 
     // Start building the query
     let query = db.from("missions").select("*");
@@ -22,6 +28,15 @@ export async function GET(request: NextRequest) {
     // Apply type filter if provided
     if (type && type !== "all") {
       query = query.eq("type", type);
+    }
+
+    // Apply search filter if provided
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      // Search in multiple fields - driver, type, address
+      query = query.or(
+        `driver.ilike.%${searchTerm}%,type.ilike.%${searchTerm}%,car_number.ilike.%${searchTerm}%,address->>address.ilike.%${searchTerm}%,address->>city.ilike.%${searchTerm}%`
+      );
     }
 
     // Apply sorting
@@ -48,17 +63,29 @@ export async function GET(request: NextRequest) {
         query = query.order("created_at", { ascending: false }); // Default to newest first
     }
 
-    const { data: missions, error } = await query;
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+
+    const { data: missions, error, count } = await query;
 
     if (error) {
       console.error("Supabase error:", error);
       return NextResponse.json(
-        { error: "Failed to fetch missions" },
+        { error: "Failed to fetch missions" } as APIResponse,
         { status: 500 },
       );
     }
 
-    return NextResponse.json(missions);
+    // Return paginated response with metadata
+    return NextResponse.json({
+      data: missions,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
   } catch (error) {
     console.error("Error fetching missions:", error);
     return NextResponse.json(
@@ -68,9 +95,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse<Mission | APIResponse>> {
   try {
-    const body = await request.json();
+    const body: CreateMissionRequest = await request.json()
+    
+    // Validate the request body
+    const validation = validateMission(body)
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { 
+          error: "Validation failed", 
+          details: validation.errors.map(e => `${e.field}: ${e.message}`)
+        } as APIResponse,
+        { status: 400 },
+      )
+    }
+
     const {
       type,
       subtype,
@@ -80,15 +120,12 @@ export async function POST(request: NextRequest) {
       date_expected,
       certificates,
       metadata,
-    } = body;
+    } = body
 
-    // Validate required fields
-    if (!type || !address) {
-      return NextResponse.json(
-        { error: "Type and address are required" },
-        { status: 400 },
-      );
-    }
+    // Normalize address to object format if string provided
+    const addressObj = typeof address === 'string' 
+      ? { address, city: '', zip_code: '' } 
+      : address
 
     // Determine status based on assignment
     const status = driver && car_number ? "waiting" : "unassigned";
@@ -99,7 +136,7 @@ export async function POST(request: NextRequest) {
         {
           type,
           subtype: subtype || null,
-          address,
+          address: addressObj,
           driver: driver || null,
           car_number: car_number || null,
           status,

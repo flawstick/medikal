@@ -1,7 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { db } from "@/server/db";
+import { type NextRequest, NextResponse } from "next/server"
+import { db } from "@/server/db"
+import type { CreateCarRequest, Car, APIResponse } from "@/lib/types"
+import { validateCar } from "@/lib/validation"
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse<Car[] | APIResponse>> {
   try {
     const { searchParams } = new URL(request.url);
     
@@ -70,9 +72,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse<Car | APIResponse>> {
   try {
-    const body = await request.json();
+    const body: CreateCarRequest = await request.json()
+    
+    // Validate the request body
+    const validation = validateCar(body)
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { 
+          error: "Validation failed", 
+          details: validation.errors.map(e => `${e.field}: ${e.message}`)
+        } as APIResponse,
+        { status: 400 },
+      )
+    }
+
     const {
       plate_number,
       make,
@@ -80,15 +95,7 @@ export async function POST(request: NextRequest) {
       year,
       color,
       metadata,
-    } = body;
-
-    // Validate required fields
-    if (!plate_number || !plate_number.trim()) {
-      return NextResponse.json(
-        { error: "Plate number is required" },
-        { status: 400 },
-      );
-    }
+    } = body
 
     const { data, error } = await db
       .from("cars")

@@ -34,13 +34,17 @@ export const missions = pgTable(
     statusIdx: index("idx_missions_status").on(table.status),
     typeIdx: index("idx_missions_type").on(table.type),
     driverIdx: index("idx_missions_driver").on(table.driver),
+    carNumberIdx: index("idx_missions_car_number").on(table.car_number),
     createdAtIdx: index("idx_missions_created_at").on(table.created_at),
+    updatedAtIdx: index("idx_missions_updated_at").on(table.updated_at),
+    completedAtIdx: index("idx_missions_completed_at").on(table.completed_at),
     dateExpectedIdx: index("idx_missions_date_expected").on(
       table.date_expected,
     ),
-    addressIdx: index("idx_missions_address").on(table.address),
-    certificatesIdx: index("idx_missions_certificates").on(table.certificates),
-    metadataIdx: index("idx_missions_metadata").on(table.metadata),
+    // Composite indexes for common query patterns
+    statusCreatedIdx: index("idx_missions_status_created").on(table.status, table.created_at),
+    typeStatusIdx: index("idx_missions_type_status").on(table.type, table.status),
+    driverStatusIdx: index("idx_missions_driver_status").on(table.driver, table.status),
   }),
 );
 

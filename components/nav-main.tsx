@@ -48,7 +48,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
       )}
       {items.map((item) => {
         const isActive =
-          item.url === "/" ? pathname === "/" : pathname.startsWith(item.url);
+          item.url === "/"
+            ? pathname === "/"
+            : item.url === "/deliveries" && pathname === "/upload"
+              ? true
+              : pathname.startsWith(item.url);
 
         return (
           <SidebarMenuItem key={item.title}>
@@ -59,7 +63,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
               className={`
                 justify-start text-right transition-colors relative z-10
                 hover:bg-muted hover:text-foreground
-                ${isActive ? "text-primary" : ""}
+                ${isActive ? "bg-primary text-background  dark:bg-background dark:text-foreground" : ""}
               `}
             >
               <a href={item.url}>

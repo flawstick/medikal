@@ -1,29 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Package, Truck, CheckCircle, Clock, TrendingUp, AlertTriangle, Timer, Users } from "lucide-react"
-
-interface Mission {
-  id: number
-  type: string
-  subtype: string | null
-  address: {
-    address: string
-    city: string
-    zip_code: string
-  }
-  driver: string | null
-  car_number: string | null
-  status: "unassigned" | "waiting" | "in_progress" | "completed" | "problem"
-  date_expected: string | null
-  completed_at: string | null
-  created_at: string
-  updated_at: string
-  certificates: any[] | null
-  metadata?: any
-}
+import type { Mission } from "@/lib/types"
 
 interface AnalyticsData {
   todayCompletions: number
@@ -38,7 +19,13 @@ interface AnalyticsData {
   totalCertificates: number
 }
 
-function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
+const AnimatedNumber = React.memo(function AnimatedNumber({ 
+  value, 
+  suffix = "" 
+}: { 
+  value: number; 
+  suffix?: string 
+}) {
   const [displayValue, setDisplayValue] = useState(0)
 
   useEffect(() => {
@@ -75,7 +62,7 @@ function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string
       {suffix}
     </span>
   )
-}
+})
 
 function StatsSkeleton() {
   return (
@@ -96,19 +83,16 @@ function StatsSkeleton() {
   )
 }
 
-export function DashboardStats() {
+export const DashboardStats = React.memo(function DashboardStats() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchAnalytics()
-  }, [])
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useMemo(() => async () => {
     try {
       const response = await fetch("/api/orders")
       if (response.ok) {
-        const missions: Mission[] = await response.json()
+        const data = await response.json()
+        const missions: Mission[] = Array.isArray(data) ? data : data.data || []
         const analyticsData = calculateAnalytics(missions)
         setAnalytics(analyticsData)
       }
@@ -117,9 +101,13 @@ export function DashboardStats() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const calculateAnalytics = (missions: Mission[]): AnalyticsData => {
+  useEffect(() => {
+    fetchAnalytics()
+  }, [fetchAnalytics])
+
+  const calculateAnalytics = useMemo(() => (missions: Mission[]): AnalyticsData => {
     const today = new Date()
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -189,7 +177,7 @@ export function DashboardStats() {
       totalManofeem,
       totalCertificates,
     }
-  }
+  }, [])
 
   if (loading) {
     return <StatsSkeleton />
@@ -276,4 +264,4 @@ export function DashboardStats() {
       ))}
     </div>
   )
-}
+})

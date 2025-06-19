@@ -76,12 +76,12 @@ export default function DeliveriesPage() {
                   <SelectValue placeholder="סטטוס" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">כל הסטטוסים</SelectItem>
-                  <SelectItem value="unassigned">ללא הקצאה</SelectItem>
-                  <SelectItem value="waiting">ממתין</SelectItem>
-                  <SelectItem value="in_progress">בדרך</SelectItem>
-                  <SelectItem value="completed">הושלם</SelectItem>
-                  <SelectItem value="problem">בעיה</SelectItem>
+                  <SelectItem value="all" className="hover:bg-transparent hover:text-foreground">כל הסטטוסים</SelectItem>
+                  <SelectItem value="unassigned" className="hover:bg-transparent hover:text-foreground">ללא הקצאה</SelectItem>
+                  <SelectItem value="waiting" className="hover:bg-transparent hover:text-foreground">ממתין</SelectItem>
+                  <SelectItem value="in_progress" className="hover:bg-transparent hover:text-foreground">בדרך</SelectItem>
+                  <SelectItem value="completed" className="hover:bg-transparent hover:text-foreground">הושלם</SelectItem>
+                  <SelectItem value="problem" className="hover:bg-transparent hover:text-foreground">בעיה</SelectItem>
                 </SelectContent>
               </Select>
               
@@ -92,10 +92,10 @@ export default function DeliveriesPage() {
                   <SelectValue placeholder="מיון לפי" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="created_at">תאריך יצירה</SelectItem>
-                  <SelectItem value="updated_at">עדכון אחרון</SelectItem>
-                  <SelectItem value="time_delivered">זמן משלוח</SelectItem>
-                  <SelectItem value="id">מספר משלוח</SelectItem>
+                  <SelectItem value="created_at" className="hover:bg-transparent hover:text-foreground">תאריך יצירה</SelectItem>
+                  <SelectItem value="updated_at" className="hover:bg-transparent hover:text-foreground">עדכון אחרון</SelectItem>
+                  <SelectItem value="time_delivered" className="hover:bg-transparent hover:text-foreground">זמן משלוח</SelectItem>
+                  <SelectItem value="id" className="hover:bg-transparent hover:text-foreground">מספר משלוח</SelectItem>
                 </SelectContent>
               </Select>
               
@@ -105,8 +105,8 @@ export default function DeliveriesPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="desc">חדש לישן</SelectItem>
-                  <SelectItem value="asc">ישן לחדש</SelectItem>
+                  <SelectItem value="desc" className="hover:bg-transparent hover:text-foreground">חדש לישן</SelectItem>
+                  <SelectItem value="asc" className="hover:bg-transparent hover:text-foreground">ישן לחדש</SelectItem>
                 </SelectContent>
               </Select>
             </div>

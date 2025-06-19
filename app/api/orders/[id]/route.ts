@@ -1,20 +1,21 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { db } from "@/server/db";
+import { type NextRequest, NextResponse } from "next/server"
+import { db } from "@/server/db"
+import type { Mission, APIResponse, CreateMissionRequest } from "@/lib/types"
 
 // DELETE /api/orders/[id] - Delete a specific mission
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
-) {
+): Promise<NextResponse<APIResponse>> {
   try {
     const { id } = await params;
     const missionId = parseInt(id);
 
     if (isNaN(missionId)) {
       return NextResponse.json(
-        { error: "Invalid mission ID" },
+        { error: "Invalid mission ID" } as APIResponse,
         { status: 400 },
-      );
+      )
     }
 
     const { error } = await db
@@ -47,16 +48,16 @@ export async function DELETE(
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
-) {
+): Promise<NextResponse<Mission | APIResponse>> {
   try {
     const { id } = await params;
     const missionId = parseInt(id);
 
     if (isNaN(missionId)) {
       return NextResponse.json(
-        { error: "Invalid mission ID" },
+        { error: "Invalid mission ID" } as APIResponse,
         { status: 400 },
-      );
+      )
     }
 
     const { data: mission, error } = await db
@@ -87,19 +88,19 @@ export async function GET(
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
-) {
+): Promise<NextResponse<Mission | APIResponse>> {
   try {
     const { id } = await params;
     const missionId = parseInt(id);
 
     if (isNaN(missionId)) {
       return NextResponse.json(
-        { error: "Invalid mission ID" },
+        { error: "Invalid mission ID" } as APIResponse,
         { status: 400 },
-      );
+      )
     }
 
-    const body = await request.json();
+    const body: Partial<CreateMissionRequest> & { status?: string; completed_at?: string } = await request.json()
     const {
       type,
       subtype,
@@ -111,14 +112,22 @@ export async function PUT(
       completed_at,
       certificates,
       metadata,
-    } = body;
+    } = body
+
+    // Validate required fields for update
+    if (type && !type.trim()) {
+      return NextResponse.json(
+        { error: "Type cannot be empty" } as APIResponse,
+        { status: 400 },
+      )
+    }
 
     const { data: updatedMission, error } = await db
       .from("missions")
       .update({
         type,
         subtype: subtype || null,
-        address,
+        address: address ? (typeof address === 'string' ? { address, city: '', zip_code: '' } : address) : undefined,
         driver: driver || null,
         car_number: car_number || null,
         status,

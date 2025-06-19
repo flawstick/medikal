@@ -7,141 +7,17 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MoreHorizontal, Eye, ChevronLeft, ChevronRight, Edit, Trash2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-
-interface Mission {
-  id: number
-  type: string
-  subtype: string | null
-  address: {
-    address: string
-    city: string
-    zip_code: string
-  }
-  driver: string | null
-  car_number: string | null
-  status: "unassigned" | "waiting" | "in_progress" | "completed" | "problem"
-  date_expected: string | null
-  completed_at: string | null
-  created_at: string
-  updated_at: string
-  certificates: any[] | null
-  metadata?: any
-}
+import type { Mission, MissionStatus } from "@/lib/types"
+import { TableLoadingSkeleton, LoadingSpinner } from "@/components/loading-states"
+import { getStatusColor, getStatusText, getAllStatuses } from "@/lib/status-helpers"
+import { formatDate, formatTime } from "@/lib/date-helpers"
 
 const ITEMS_PER_PAGE = 15
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "completed":
-      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-    case "in_progress":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-    case "waiting":
-      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-    case "problem":
-      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-    case "unassigned":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-    default:
-      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-  }
-}
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case "completed":
-      return "הושלם"
-    case "in_progress":
-      return "בדרך"
-    case "waiting":
-      return "ממתין"
-    case "problem":
-      return "בעיה"
-    case "unassigned":
-      return "ללא הקצאה"
-    default:
-      return status
-  }
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString("he-IL")
-}
-
-const formatTime = (dateString: string) => {
-  return new Date(dateString).toLocaleTimeString("he-IL", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-}
-
-function TableSkeleton() {
-  return (
-    <div className="rounded-md border overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="text-right">מזהה</TableHead>
-            <TableHead className="text-right">סוג</TableHead>
-            <TableHead className="text-right">כתובת</TableHead>
-            <TableHead className="text-right">נהג</TableHead>
-            <TableHead className="text-right hidden md:table-cell">רכב</TableHead>
-            <TableHead className="text-right w-24">סטטוס</TableHead>
-            <TableHead className="text-right hidden lg:table-cell">הושלם ב</TableHead>
-            <TableHead className="text-right hidden sm:table-cell">זמן נוצר</TableHead>
-            <TableHead className="text-right">פעולות</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
-            <TableRow key={i} className="h-16">
-              <TableCell className="text-right h-16">
-                <Skeleton className="h-4 w-12" />
-              </TableCell>
-              <TableCell className="text-right h-16">
-                <div className="space-y-1">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-              </TableCell>
-              <TableCell className="text-right h-16">
-                <Skeleton className="h-4 w-32" />
-              </TableCell>
-              <TableCell className="text-right h-16">
-                <Skeleton className="h-4 w-20" />
-              </TableCell>
-              <TableCell className="text-right h-16 hidden md:table-cell">
-                <Skeleton className="h-4 w-16" />
-              </TableCell>
-              <TableCell className="text-right h-16 w-24">
-                <Skeleton className="h-6 w-full rounded-full" />
-              </TableCell>
-              <TableCell className="text-right h-16 hidden lg:table-cell">
-                <div className="space-y-1">
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-3 w-12" />
-                </div>
-              </TableCell>
-              <TableCell className="text-right h-16 hidden sm:table-cell">
-                <div className="space-y-1">
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-3 w-12" />
-                </div>
-              </TableCell>
-              <TableCell className="h-16">
-                <Skeleton className="h-8 w-8 rounded" />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}
 
 interface DeliveriesTableProps {
   statusFilter?: string
@@ -161,6 +37,8 @@ export function DeliveriesTable({
   const router = useRouter()
   const [missions, setMissions] = useState<Mission[]>([])
   const [loading, setLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [missionToDelete, setMissionToDelete] = useState<Mission | null>(null)
@@ -187,7 +65,9 @@ export function DeliveriesTable({
       
       const response = await fetch(`/api/orders?${params}`)
       if (response.ok) {
-        const data = await response.json()
+        const result = await response.json()
+        // Handle both old array format and new paginated format
+        const data = Array.isArray(result) ? result : result.data || []
         setMissions(data)
       }
     } catch (error) {
@@ -198,7 +78,7 @@ export function DeliveriesTable({
   }
 
   if (loading) {
-    return <TableSkeleton />
+    return <TableLoadingSkeleton rows={ITEMS_PER_PAGE} columns={9} />
   }
 
   // Filter missions based on search query
@@ -236,6 +116,7 @@ export function DeliveriesTable({
   const handleDeleteConfirm = async () => {
     if (!missionToDelete) return
 
+    setIsDeleting(true)
     try {
       const response = await fetch(`/api/orders/${missionToDelete.id}`, {
         method: 'DELETE',
@@ -251,6 +132,8 @@ export function DeliveriesTable({
       }
     } catch (error) {
       console.error('Error deleting mission:', error)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -263,6 +146,7 @@ export function DeliveriesTable({
   const handleStatusUpdateConfirm = async () => {
     if (!missionToUpdate || !newStatus) return
 
+    setIsUpdating(true)
     try {
       const response = await fetch(`/api/orders/${missionToUpdate.id}`, {
         method: 'PUT',
@@ -292,6 +176,8 @@ export function DeliveriesTable({
       }
     } catch (error) {
       console.error('Error updating mission status:', error)
+    } finally {
+      setIsUpdating(false)
     }
   }
 
@@ -311,14 +197,27 @@ export function DeliveriesTable({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel>ביטול</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>ביטול</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDeleteConfirm}
+              disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              מחק
+              {isDeleting ? (
+                <div className="flex items-center">
+                  <LoadingSpinner size="sm" />
+                  <span className="mr-2">מוחק...</span>
+                </div>
+              ) : (
+                "מחק"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
+          {isDeleting && (
+            <div aria-live="polite" className="sr-only">
+              מוחק משימה...
+            </div>
+          )}
         </AlertDialogContent>
       </AlertDialog>
 
@@ -341,45 +240,58 @@ export function DeliveriesTable({
                   <SelectValue placeholder="בחר סטטוס" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unassigned">ללא הקצאה</SelectItem>
-                  <SelectItem value="waiting">ממתין</SelectItem>
-                  <SelectItem value="in_progress">בדרך</SelectItem>
-                  <SelectItem value="completed">הושלם</SelectItem>
-                  <SelectItem value="problem">בעיה</SelectItem>
+                  {getAllStatuses().map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter className="flex-row-reverse gap-2">
-            <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setStatusDialogOpen(false)} disabled={isUpdating}>
               ביטול
             </Button>
-            <Button onClick={handleStatusUpdateConfirm}>
-              עדכן סטטוס
+            <Button onClick={handleStatusUpdateConfirm} disabled={isUpdating}>
+              {isUpdating ? (
+                <div className="flex items-center">
+                  <LoadingSpinner size="sm" />
+                  <span className="mr-2">מעדכן...</span>
+                </div>
+              ) : (
+                "עדכן סטטוס"
+              )}
             </Button>
           </DialogFooter>
+          {isUpdating && (
+            <div aria-live="polite" className="sr-only">
+              מעדכן סטטוס משימה...
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       
       <div>
         <div className="rounded-md border overflow-x-auto">
-        <Table>
+        <Table role="table" aria-label="טבלת משלוחים">
+          <caption className="sr-only">
+            רשימת משלוחים עם פרטי סטטוס, כתובת, נהג ופעולות זמינות. מציגה {currentMissions.length} מתוך {filteredMissions.length} משימות
+          </caption>
           <TableHeader>
-            <TableRow>
-              <TableHead className="text-right">מזהה</TableHead>
-              <TableHead className="text-right">סוג</TableHead>
-              <TableHead className="text-right">כתובת</TableHead>
-              <TableHead className="text-right">נהג</TableHead>
-              <TableHead className="text-right hidden md:table-cell">רכב</TableHead>
-              <TableHead className="text-right w-24">סטטוס</TableHead>
-              <TableHead className="text-right hidden lg:table-cell">הושלם ב</TableHead>
-              <TableHead className="text-right hidden sm:table-cell">זמן נוצר</TableHead>
-              <TableHead className="text-right">פעולות</TableHead>
+            <TableRow role="row">
+              <TableHead scope="col" className="text-right">מזהה</TableHead>
+              <TableHead scope="col" className="text-right">סוג</TableHead>
+              <TableHead scope="col" className="text-right">כתובת</TableHead>
+              <TableHead scope="col" className="text-right">נהג</TableHead>
+              <TableHead scope="col" className="text-right hidden md:table-cell">רכב</TableHead>
+              <TableHead scope="col" className="text-right w-24">סטטוס</TableHead>
+              <TableHead scope="col" className="text-right hidden lg:table-cell">הושלם ב</TableHead>
+              <TableHead scope="col" className="text-right hidden sm:table-cell">זמן נוצר</TableHead>
+              <TableHead scope="col" className="text-right">פעולות</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentMissions.map((mission) => (
-              <TableRow key={mission.id} className="h-16">
+              <TableRow key={mission.id} className="h-16" role="row">
                 <TableCell className="text-right font-medium h-16">#{mission.id}</TableCell>
                 <TableCell className="text-right h-16">
                   <div className="text-sm">
@@ -410,8 +322,10 @@ export function DeliveriesTable({
                 <TableCell className="text-right h-16 w-24">
                   <Badge
                     className={`${getStatusColor(mission.status)} px-2 py-1 text-xs whitespace-nowrap w-full justify-center`}
+                    role="status"
+                    aria-label={`סטטוס משימה: ${getStatusText(mission.status)}`}
                   >
-                    {getStatusText(mission.status)}
+                    <span aria-hidden="true">●</span> {getStatusText(mission.status)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right h-16 hidden lg:table-cell">
@@ -433,23 +347,38 @@ export function DeliveriesTable({
                 <TableCell className="h-16">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
+                      <Button 
+                        variant="ghost" 
+                        className="h-8 w-8 p-0"
+                        aria-label={`פעולות עבור משימה ${mission.id}`}
+                        aria-haspopup="menu"
+                      >
+                        <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleViewDetails(mission)}>
-                        <Eye className="mr-2 h-4 w-4" /> צפה בפרטים
+                    <DropdownMenuContent align="end" role="menu">
+                      <DropdownMenuItem 
+                        onClick={() => handleViewDetails(mission)}
+                        role="menuitem"
+                        aria-label={`צפה בפרטי משימה ${mission.id}`}
+                      >
+                        <Eye className="mr-2 h-4 w-4" aria-hidden="true" /> צפה בפרטים
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleStatusUpdateClick(mission)}>
-                        <Edit className="mr-2 h-4 w-4" /> עדכן סטטוס
+                      <DropdownMenuItem 
+                        onClick={() => handleStatusUpdateClick(mission)}
+                        role="menuitem"
+                        aria-label={`עדכן סטטוס משימה ${mission.id}`}
+                      >
+                        <Edit className="mr-2 h-4 w-4" aria-hidden="true" /> עדכן סטטוס
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
                         className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
                         onClick={() => handleDeleteClick(mission)}
+                        role="menuitem"
+                        aria-label={`מחק משימה ${mission.id}`}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" /> מחק משימה
+                        <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> מחק משימה
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
