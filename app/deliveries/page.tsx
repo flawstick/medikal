@@ -1,19 +1,50 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DeliveriesTable } from "@/components/deliveries-table"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Filter, ArrowUpDown } from "lucide-react"
+import { Plus, Search, Filter, ArrowUpDown, Car, User } from "lucide-react"
 import Link from "next/link"
+import type { Car, Driver } from "@/lib/types"
 
 export default function DeliveriesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
+  const [carFilter, setCarFilter] = useState("all")
+  const [driverFilter, setDriverFilter] = useState("all")
   const [sortBy, setSortBy] = useState("created_at")
   const [sortOrder, setSortOrder] = useState("desc")
   const [searchQuery, setSearchQuery] = useState("")
+  const [cars, setCars] = useState<Car[]>([])
+  const [drivers, setDrivers] = useState<Driver[]>([])
+  
+  // Fetch cars and drivers for filter options
+  useEffect(() => {
+    const fetchFiltersData = async () => {
+      try {
+        const [carsResponse, driversResponse] = await Promise.all([
+          fetch('/api/cars?status=active'),
+          fetch('/api/drivers?status=active')
+        ]);
+
+        if (carsResponse.ok) {
+          const carsData = await carsResponse.json();
+          setCars(carsData);
+        }
+
+        if (driversResponse.ok) {
+          const driversData = await driversResponse.json();
+          setDrivers(driversData);
+        }
+      } catch (error) {
+        console.error('Error fetching filter data:', error);
+      }
+    };
+
+    fetchFiltersData();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -34,7 +65,7 @@ export default function DeliveriesPage() {
         <CardHeader className="space-y-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-right text-xl">כל המשלוחים</CardTitle>
-            {(statusFilter !== "all" || searchQuery) && (
+            {(statusFilter !== "all" || carFilter !== "all" || driverFilter !== "all" || searchQuery) && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>מסננים פעילים:</span>
                 {statusFilter !== "all" && (
@@ -43,6 +74,16 @@ export default function DeliveriesPage() {
                              statusFilter === "waiting" ? "ממתין" :
                              statusFilter === "in_progress" ? "בדרך" :
                              statusFilter === "completed" ? "הושלם" : "בעיה"}
+                  </span>
+                )}
+                {carFilter !== "all" && (
+                  <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
+                    רכב: {cars.find(c => c.id.toString() === carFilter)?.plate_number || carFilter}
+                  </span>
+                )}
+                {driverFilter !== "all" && (
+                  <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
+                    נהג: {drivers.find(d => d.id.toString() === driverFilter)?.name || driverFilter}
                   </span>
                 )}
                 {searchQuery && (
@@ -68,7 +109,7 @@ export default function DeliveriesPage() {
             </div>
             
             {/* Filter and Sort Controls */}
-            <div className="flex gap-2 order-1 md:order-2">
+            <div className="flex gap-2 order-1 md:order-2 flex-wrap">
               {/* Status Filter */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-40">
@@ -82,6 +123,42 @@ export default function DeliveriesPage() {
                   <SelectItem value="in_progress" className="hover:bg-transparent hover:text-foreground">בדרך</SelectItem>
                   <SelectItem value="completed" className="hover:bg-transparent hover:text-foreground">הושלם</SelectItem>
                   <SelectItem value="problem" className="hover:bg-transparent hover:text-foreground">בעיה</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Car Filter */}
+              <Select value={carFilter} onValueChange={setCarFilter}>
+                <SelectTrigger className="w-40">
+                  <Car className="h-4 w-4 ml-2" />
+                  <SelectValue placeholder="רכב" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="hover:bg-transparent hover:text-foreground">כל הרכבים</SelectItem>
+                  <SelectItem value="unassigned" className="hover:bg-transparent hover:text-foreground">ללא רכב</SelectItem>
+                  {cars.map((car) => (
+                    <SelectItem key={car.id} value={car.id.toString()} className="hover:bg-transparent hover:text-foreground">
+                      {car.plate_number}
+                      {car.make && car.model && ` - ${car.make} ${car.model}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Driver Filter */}
+              <Select value={driverFilter} onValueChange={setDriverFilter}>
+                <SelectTrigger className="w-40">
+                  <User className="h-4 w-4 ml-2" />
+                  <SelectValue placeholder="נהג" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="hover:bg-transparent hover:text-foreground">כל הנהגים</SelectItem>
+                  <SelectItem value="unassigned" className="hover:bg-transparent hover:text-foreground">ללא נהג</SelectItem>
+                  {drivers.map((driver) => (
+                    <SelectItem key={driver.id} value={driver.id.toString()} className="hover:bg-transparent hover:text-foreground">
+                      {driver.name}
+                      {driver.phone && ` (${driver.phone})`}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               
@@ -115,6 +192,8 @@ export default function DeliveriesPage() {
         <CardContent>
           <DeliveriesTable 
             statusFilter={statusFilter}
+            carFilter={carFilter}
+            driverFilter={driverFilter}
             sortBy={sortBy}
             sortOrder={sortOrder}
             searchQuery={searchQuery}

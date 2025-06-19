@@ -4,17 +4,17 @@ import type { MissionStatus } from "@/lib/types"
 export function getStatusColor(status: MissionStatus | string): string {
   switch (status) {
     case "completed":
-      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+      return "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800"
     case "in_progress":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+      return "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
     case "waiting":
-      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+      return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800"
     case "problem":
-      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+      return "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800"
     case "unassigned":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+      return "bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
     default:
-      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+      return "bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
   }
 }
 

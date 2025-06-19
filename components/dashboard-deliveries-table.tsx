@@ -290,7 +290,7 @@ export function DashboardDeliveriesTable() {
               <TableHead className="text-right">כתובת</TableHead>
               <TableHead className="text-right">תעודות</TableHead>
               <TableHead className="text-right w-24">סטטוס</TableHead>
-              <TableHead className="text-right hidden sm:table-cell">זמן נוצר</TableHead>
+              <TableHead className="text-right hidden sm:table-cell">תאריך צפוי</TableHead>
               <TableHead className="text-right">פעולות</TableHead>
             </TableRow>
           </TableHeader>
@@ -318,16 +318,19 @@ export function DashboardDeliveriesTable() {
                 </TableCell>
                 <TableCell className="text-right h-16 w-24">
                   <Badge
-                    className={`${getStatusColor(mission.status)} px-2 py-1 text-xs whitespace-nowrap w-full justify-center`}
+                    className={`${getStatusColor(mission.status)} px-2 py-1 text-xs whitespace-nowrap w-full justify-center cursor-pointer transition-colors`}
                   >
                     {getStatusText(mission.status)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right h-16 hidden sm:table-cell">
-                  <div className="text-sm">
-                    <div>{formatDate(mission.created_at)}</div>
-                    <div className="text-muted-foreground">{formatTime(mission.created_at)}</div>
-                  </div>
+                  {mission.date_expected ? (
+                    <div className="text-sm">
+                      <div>{formatDate(mission.date_expected)}</div>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">לא צוין</span>
+                  )}
                 </TableCell>
                 <TableCell className="h-16">
                   <DropdownMenu>

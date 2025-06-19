@@ -63,6 +63,8 @@ import type {
   Certificate,
   GoogleMapsPlace,
   GoogleMapsAddressComponent,
+  Car,
+  Driver,
 } from "@/lib/types";
 
 export function UploadDeliveryForm() {
@@ -73,14 +75,19 @@ export function UploadDeliveryForm() {
   const [file, setFile] = useState<File | null>(null);
   const [parsedMissions, setParsedMissions] = useState<ParsedMission[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
   const [formData, setFormData] = useState({
     type: "משלוח",
     subtype: "",
     address: "",
     city: "",
     zip_code: "",
-    driver: "",
+    driver: "none",
     car_number: "",
+    driver_id: null as number | null,
+    car_id: null as number | null,
     date_expected: "",
     metadata: {
       client_name: "",
@@ -97,7 +104,40 @@ export function UploadDeliveryForm() {
   const [cityAutocomplete, setCityAutocomplete] =
     useState<google.maps.places.Autocomplete | null>(null);
 
-  // Load Google Maps script
+  // Fetch cars and drivers data on mount
+  useEffect(() => {
+    const fetchCarsAndDrivers = async () => {
+      try {
+        const [carsResponse, driversResponse] = await Promise.all([
+          fetch('/api/cars?status=active'),
+          fetch('/api/drivers?status=active')
+        ]);
+
+        if (carsResponse.ok) {
+          const carsData = await carsResponse.json();
+          setCars(carsData);
+        }
+
+        if (driversResponse.ok) {
+          const driversData = await driversResponse.json();
+          setDrivers(driversData);
+        }
+      } catch (error) {
+        console.error('Error fetching cars and drivers:', error);
+        toast({
+          title: "שגיאה",
+          description: "שגיאה בטעינת רשימת הרכבים והנהגים",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchCarsAndDrivers();
+  }, [toast]);
+
+  // Load Google Maps script separately
   useEffect(() => {
     // Check if Google Maps script is already loaded
     const loadGoogleMapsScript = () => {
@@ -250,11 +290,12 @@ export function UploadDeliveryForm() {
     if (
       !missionData.type ||
       !missionData.address.address ||
-      !missionData.address.city
+      !missionData.address.city ||
+      !formData.car_id
     ) {
       toast({
         title: "שגיאה בטופס",
-        description: "אנא מלא את כל השדות הנדרשים",
+        description: "אנא מלא את כל השדות הנדרשים (כולל בחירת רכב)",
         variant: "destructive",
       });
       return;
@@ -276,7 +317,10 @@ export function UploadDeliveryForm() {
             city: formData.city.trim(),
             zip_code: formData.zip_code || "",
           },
-          driver: formData.driver || null,
+          driver_id: formData.driver_id,
+          car_id: formData.car_id,
+          // Keep backward compatibility fields for now
+          driver: formData.driver && formData.driver !== "none" ? formData.driver : null,
           car_number: formData.car_number || null,
           date_expected: formData.date_expected || null,
           metadata: {
@@ -305,8 +349,10 @@ export function UploadDeliveryForm() {
           address: "",
           city: "",
           zip_code: "",
-          driver: "",
+          driver: "none",
           car_number: "",
+          driver_id: null,
+          car_id: null,
           date_expected: "",
           metadata: {
             client_name: "",
@@ -432,6 +478,16 @@ export function UploadDeliveryForm() {
     try {
       const results = await Promise.all(
         parsedMissions.map(async (mission) => {
+          // Convert driver name to driver_id
+          const driver_id = mission.driver 
+            ? drivers.find(d => d.name === mission.driver)?.id || null
+            : null;
+
+          // Convert car_number to car_id
+          const car_id = mission.car_number 
+            ? cars.find(c => c.plate_number === mission.car_number)?.id || null
+            : null;
+
           const response = await fetch("/api/orders", {
             method: "POST",
             headers: {
@@ -447,6 +503,8 @@ export function UploadDeliveryForm() {
               },
               driver: mission.driver || null,
               car_number: mission.car_number || null,
+              driver_id: driver_id,
+              car_id: car_id,
               date_expected: mission.date_expected || null,
               certificates:
                 mission.certificates.length > 0 ? mission.certificates : null,
@@ -1093,18 +1151,38 @@ export function UploadDeliveryForm() {
                     <Label htmlFor="driver" className="text-right block">
                       נהג (אופציונלי)
                     </Label>
-                    <Input
-                      id="driver"
+                    <Select
                       value={formData.driver}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          driver: e.target.value,
-                        }))
-                      }
-                      placeholder="הכנס שם הנהג"
-                      className="text-right"
-                    />
+                      onValueChange={(value) => {
+                        if (value === "none") {
+                          setFormData((prev) => ({ 
+                            ...prev, 
+                            driver: "none", 
+                            driver_id: null 
+                          }));
+                        } else {
+                          const selectedDriver = drivers.find(d => d.name === value);
+                          setFormData((prev) => ({ 
+                            ...prev, 
+                            driver: value,
+                            driver_id: selectedDriver?.id || null
+                          }));
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder={loadingData ? "טוען נהגים..." : "בחר נהג"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">ללא נהג</SelectItem>
+                        {drivers.map((driver) => (
+                          <SelectItem key={driver.id} value={driver.name}>
+                            {driver.name}
+                            {driver.phone && ` (${driver.phone})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -1155,20 +1233,33 @@ export function UploadDeliveryForm() {
 
                   <div className="space-y-2 md:order-1">
                     <Label htmlFor="car_number" className="text-right block">
-                      מספר רכב (אופציונלי)
+                      רכב *
                     </Label>
-                    <Input
-                      id="car_number"
+                    <Select
                       value={formData.car_number}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          car_number: e.target.value,
-                        }))
-                      }
-                      placeholder="הכנס מספר רכב"
-                      className="text-right"
-                    />
+                      onValueChange={(value) => {
+                        const selectedCar = cars.find(c => c.plate_number === value);
+                        setFormData((prev) => ({ 
+                          ...prev, 
+                          car_number: value,
+                          car_id: selectedCar?.id || null
+                        }));
+                      }}
+                      required
+                    >
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder={loadingData ? "טוען רכבים..." : "בחר רכב"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cars.map((car) => (
+                          <SelectItem key={car.id} value={car.plate_number}>
+                            {car.plate_number}
+                            {car.make && car.model && ` - ${car.make} ${car.model}`}
+                            {car.year && ` (${car.year})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

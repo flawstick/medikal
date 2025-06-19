@@ -22,6 +22,8 @@ const ITEMS_PER_PAGE = 15
 interface DeliveriesTableProps {
   statusFilter?: string
   typeFilter?: string
+  carFilter?: string
+  driverFilter?: string
   sortBy?: string
   sortOrder?: string
   searchQuery?: string
@@ -29,7 +31,9 @@ interface DeliveriesTableProps {
 
 export function DeliveriesTable({ 
   statusFilter = "all",
-  typeFilter = "all", 
+  typeFilter = "all",
+  carFilter = "all",
+  driverFilter = "all",
   sortBy = "created_at", 
   sortOrder = "desc", 
   searchQuery = "" 
@@ -48,17 +52,19 @@ export function DeliveriesTable({
 
   useEffect(() => {
     fetchMissions()
-  }, [statusFilter, typeFilter, sortBy, sortOrder])
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder])
 
   useEffect(() => {
     setCurrentPage(1) // Reset to first page when filters change
-  }, [statusFilter, typeFilter, sortBy, sortOrder, searchQuery])
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery])
 
   const fetchMissions = async () => {
     try {
       const params = new URLSearchParams({
         status: statusFilter,
         type: typeFilter,
+        car: carFilter,
+        driver: driverFilter,
         sortBy,
         sortOrder,
       })
@@ -285,7 +291,7 @@ export function DeliveriesTable({
               <TableHead scope="col" className="text-right hidden md:table-cell">רכב</TableHead>
               <TableHead scope="col" className="text-right w-24">סטטוס</TableHead>
               <TableHead scope="col" className="text-right hidden lg:table-cell">הושלם ב</TableHead>
-              <TableHead scope="col" className="text-right hidden sm:table-cell">זמן נוצר</TableHead>
+              <TableHead scope="col" className="text-right hidden sm:table-cell">תאריך צפוי</TableHead>
               <TableHead scope="col" className="text-right">פעולות</TableHead>
             </TableRow>
           </TableHeader>
@@ -321,11 +327,11 @@ export function DeliveriesTable({
                 </TableCell>
                 <TableCell className="text-right h-16 w-24">
                   <Badge
-                    className={`${getStatusColor(mission.status)} px-2 py-1 text-xs whitespace-nowrap w-full justify-center`}
+                    className={`${getStatusColor(mission.status)} px-2 py-1 text-xs whitespace-nowrap w-full justify-center cursor-pointer transition-colors`}
                     role="status"
                     aria-label={`סטטוס משימה: ${getStatusText(mission.status)}`}
                   >
-                    <span aria-hidden="true">●</span> {getStatusText(mission.status)}
+                    {getStatusText(mission.status)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right h-16 hidden lg:table-cell">
@@ -339,10 +345,13 @@ export function DeliveriesTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right h-16 hidden sm:table-cell">
-                  <div className="text-sm">
-                    <div>{formatDate(mission.created_at)}</div>
-                    <div className="text-muted-foreground">{formatTime(mission.created_at)}</div>
-                  </div>
+                  {mission.date_expected ? (
+                    <div className="text-sm">
+                      <div>{formatDate(mission.date_expected)}</div>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">לא צוין</span>
+                  )}
                 </TableCell>
                 <TableCell className="h-16">
                   <DropdownMenu>

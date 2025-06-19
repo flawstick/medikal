@@ -26,6 +26,8 @@ export interface Mission {
   address: Address
   driver: string | null
   car_number: string | null
+  driver_id: number | null
+  car_id: number | null
   status: MissionStatus
   date_expected: string | null
   completed_at: string | null
@@ -42,6 +44,8 @@ export interface CreateMissionRequest {
   address: Address | string // Can be string for backward compatibility
   driver?: string
   car_number?: string
+  driver_id?: number
+  car_id?: number
   date_expected?: string
   certificates?: Partial<Certificate>[]
   metadata?: MissionMetadata
@@ -70,6 +74,7 @@ export interface Driver {
   phone?: string
   email?: string
   license_number?: string
+  is_active: boolean
   metadata?: Record<string, any>
   created_at: string
   updated_at: string
@@ -82,6 +87,7 @@ export interface Car {
   model?: string
   year?: number
   color?: string
+  is_active: boolean
   metadata?: Record<string, any>
   created_at: string
   updated_at: string

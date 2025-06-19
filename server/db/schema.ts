@@ -7,6 +7,7 @@ import {
   index,
   varchar,
   boolean,
+  bigint,
 } from "drizzle-orm/pg-core";
 
 export const missions = pgTable(
@@ -18,6 +19,8 @@ export const missions = pgTable(
     address: jsonb("address").notNull(),
     driver: text("driver"),
     car_number: text("car_number"),
+    driver_id: bigint("driver_id", { mode: "number" }).references(() => drivers.id, { onDelete: "set null" }),
+    car_id: bigint("car_id", { mode: "number" }).references(() => cars.id, { onDelete: "set null" }),
     status: text("status", {
       enum: ["unassigned", "waiting", "in_progress", "completed", "problem"],
     })
@@ -35,6 +38,8 @@ export const missions = pgTable(
     typeIdx: index("idx_missions_type").on(table.type),
     driverIdx: index("idx_missions_driver").on(table.driver),
     carNumberIdx: index("idx_missions_car_number").on(table.car_number),
+    driverIdIdx: index("idx_missions_driver_id").on(table.driver_id),
+    carIdIdx: index("idx_missions_car_id").on(table.car_id),
     createdAtIdx: index("idx_missions_created_at").on(table.created_at),
     updatedAtIdx: index("idx_missions_updated_at").on(table.updated_at),
     completedAtIdx: index("idx_missions_completed_at").on(table.completed_at),
@@ -45,6 +50,8 @@ export const missions = pgTable(
     statusCreatedIdx: index("idx_missions_status_created").on(table.status, table.created_at),
     typeStatusIdx: index("idx_missions_type_status").on(table.type, table.status),
     driverStatusIdx: index("idx_missions_driver_status").on(table.driver, table.status),
+    driverIdStatusIdx: index("idx_missions_driver_id_status").on(table.driver_id, table.status),
+    carIdStatusIdx: index("idx_missions_car_id_status").on(table.car_id, table.status),
   }),
 );
 

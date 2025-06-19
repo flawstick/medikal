@@ -10,6 +10,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
     // Get query parameters
     const status = searchParams.get("status");
     const type = searchParams.get("type");
+    const car = searchParams.get("car");
+    const driver = searchParams.get("driver");
     const sortBy = searchParams.get("sortBy") || "created_at";
     const sortOrder = searchParams.get("sortOrder") || "desc";
     const search = searchParams.get("search");
@@ -28,6 +30,24 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
     // Apply type filter if provided
     if (type && type !== "all") {
       query = query.eq("type", type);
+    }
+
+    // Apply car filter if provided
+    if (car && car !== "all") {
+      if (car === "unassigned") {
+        query = query.is("car_id", null);
+      } else {
+        query = query.eq("car_id", parseInt(car));
+      }
+    }
+
+    // Apply driver filter if provided
+    if (driver && driver !== "all") {
+      if (driver === "unassigned") {
+        query = query.is("driver_id", null);
+      } else {
+        query = query.eq("driver_id", parseInt(driver));
+      }
     }
 
     // Apply search filter if provided
@@ -117,6 +137,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<Mission |
       address,
       driver,
       car_number,
+      driver_id,
+      car_id,
       date_expected,
       certificates,
       metadata,
@@ -128,7 +150,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Mission |
       : address
 
     // Determine status based on assignment
-    const status = driver && car_number ? "waiting" : "unassigned";
+    const status = (driver_id || driver) && (car_id || car_number) ? "waiting" : "unassigned";
 
     const { data, error } = await db
       .from("missions")
@@ -139,6 +161,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<Mission |
           address: addressObj,
           driver: driver || null,
           car_number: car_number || null,
+          driver_id: driver_id || null,
+          car_id: car_id || null,
           status,
           date_expected: date_expected ? new Date(date_expected).toISOString() : null,
           certificates: certificates || null,
