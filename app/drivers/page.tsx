@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, MoreHorizontal, Edit, Trash2, UserCheck, UserX } from "lucide-react";
+import { Plus, MoreHorizontal, Edit, Trash2, UserCheck, UserX, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Driver {
@@ -20,6 +20,8 @@ interface Driver {
   phone: string | null;
   email: string | null;
   license_number: string | null;
+  username: string;
+  hashed_password: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -38,6 +40,15 @@ export default function DriversPage() {
     phone: "",
     email: "",
     license_number: "",
+    username: "",
+    password: "",
+  });
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [passwordDriver, setPasswordDriver] = useState<Driver | null>(null);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
   useEffect(() => {
@@ -71,14 +82,24 @@ export default function DriversPage() {
       phone: "",
       email: "",
       license_number: "",
+      username: "",
+      password: "",
+    });
+  };
+
+  const resetPasswordForm = () => {
+    setPasswordForm({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     });
   };
 
   const handleCreate = async () => {
-    if (!formData.name.trim()) {
+    if (!formData.name.trim() || !formData.username.trim() || !formData.password.trim()) {
       toast({
         title: "שגיאה",
-        description: "שם הנהג הוא שדה חובה",
+        description: "שם הנהג, שם משתמש וסיסמה הם שדות חובה",
         variant: "destructive",
       });
       return;
@@ -115,10 +136,10 @@ export default function DriversPage() {
   };
 
   const handleEdit = async () => {
-    if (!editingDriver || !formData.name.trim()) {
+    if (!editingDriver || !formData.name.trim() || !formData.username.trim()) {
       toast({
         title: "שגיאה",
-        description: "שם הנהג הוא שדה חובה",
+        description: "שם הנהג ושם משתמש הם שדות חובה",
         variant: "destructive",
       });
       return;
@@ -131,7 +152,11 @@ export default function DriversPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...formData,
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          license_number: formData.license_number,
+          username: formData.username,
           is_active: editingDriver.is_active,
         }),
       });
@@ -222,8 +247,66 @@ export default function DriversPage() {
       phone: driver.phone || "",
       email: driver.email || "",
       license_number: driver.license_number || "",
+      username: driver.username || "",
+      password: "",
     });
     setIsEditDialogOpen(true);
+  };
+
+  const openPasswordDialog = (driver: Driver) => {
+    setPasswordDriver(driver);
+    setIsPasswordDialogOpen(true);
+  };
+
+  const handlePasswordChange = async () => {
+    if (!passwordDriver || !passwordForm.newPassword.trim()) {
+      toast({
+        title: "שגיאה",
+        description: "סיסמה חדשה היא שדה חובה",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "שגיאה",
+        description: "הסיסמאות אינן תואמות",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/drivers/${passwordDriver.id}/password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "הצלחה!",
+          description: "הסיסמה עודכנה בהצלחה",
+        });
+        setIsPasswordDialogOpen(false);
+        setPasswordDriver(null);
+        resetPasswordForm();
+      } else {
+        throw new Error("Failed to update password");
+      }
+    } catch (error) {
+      console.error("Error updating password:", error);
+      toast({
+        title: "שגיאה",
+        description: "שגיאה בעדכון הסיסמה",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -243,6 +326,7 @@ export default function DriversPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-right">שם</TableHead>
+                  <TableHead className="text-right">שם משתמש</TableHead>
                   <TableHead className="text-right">טלפון</TableHead>
                   <TableHead className="text-right">אימייל</TableHead>
                   <TableHead className="text-right">רישיון</TableHead>
@@ -256,6 +340,9 @@ export default function DriversPage() {
                   <TableRow key={i}>
                     <TableCell className="text-right">
                       <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Skeleton className="h-4 w-20" />
                     </TableCell>
                     <TableCell className="text-right">
                       <Skeleton className="h-4 w-20" />
@@ -343,6 +430,27 @@ export default function DriversPage() {
                     className="text-right"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username" className="text-right block">שם משתמש *</Label>
+                  <Input
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                    placeholder="הכנס שם משתמש"
+                    className="text-right"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-right block">סיסמה *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="הכנס סיסמה"
+                    className="text-right"
+                  />
+                </div>
               </div>
               <DialogFooter className="flex-row-reverse gap-2">
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -360,6 +468,7 @@ export default function DriversPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="text-right">שם</TableHead>
+                <TableHead className="text-right">שם משתמש</TableHead>
                 <TableHead className="text-right">טלפון</TableHead>
                 <TableHead className="text-right">אימייל</TableHead>
                 <TableHead className="text-right">רישיון</TableHead>
@@ -372,6 +481,7 @@ export default function DriversPage() {
               {drivers.map((driver) => (
                 <TableRow key={driver.id}>
                   <TableCell className="text-right font-medium">{driver.name}</TableCell>
+                  <TableCell className="text-right font-mono">{driver.username}</TableCell>
                   <TableCell className="text-right">{driver.phone || "-"}</TableCell>
                   <TableCell className="text-right">{driver.email || "-"}</TableCell>
                   <TableCell className="text-right">{driver.license_number || "-"}</TableCell>
@@ -391,6 +501,9 @@ export default function DriversPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEditDialog(driver)}>
                           <Edit className="mr-2 h-4 w-4" /> ערוך
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openPasswordDialog(driver)}>
+                          <KeyRound className="mr-2 h-4 w-4" /> שנה סיסמה
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleToggleActive(driver)}>
                           {driver.is_active ? (
@@ -490,6 +603,16 @@ export default function DriversPage() {
                 className="text-right"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-username" className="text-right block">שם משתמש *</Label>
+              <Input
+                id="edit-username"
+                value={formData.username}
+                onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                placeholder="הכנס שם משתמש"
+                className="text-right"
+              />
+            </div>
           </div>
           <DialogFooter className="flex-row-reverse gap-2">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
@@ -497,6 +620,51 @@ export default function DriversPage() {
             </Button>
             <Button onClick={handleEdit}>
               עדכן נהג
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Change Dialog */}
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-right">שנה סיסמה - {passwordDriver?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password" className="text-right block">סיסמה חדשה *</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                placeholder="הכנס סיסמה חדשה"
+                className="text-right"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password" className="text-right block">אישור סיסמה *</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                placeholder="אשר סיסמה חדשה"
+                className="text-right"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button variant="outline" onClick={() => {
+              setIsPasswordDialogOpen(false);
+              setPasswordDriver(null);
+              resetPasswordForm();
+            }}>
+              ביטול
+            </Button>
+            <Button onClick={handlePasswordChange}>
+              עדכן סיסמה
             </Button>
           </DialogFooter>
         </DialogContent>

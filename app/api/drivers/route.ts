@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/server/db"
 import type { CreateDriverRequest, Driver, APIResponse } from "@/lib/types"
 import { validateDriver } from "@/lib/validation"
+import bcryptjs from "bcryptjs"
 
 export async function GET(request: NextRequest): Promise<NextResponse<Driver[] | APIResponse>> {
   try {
@@ -84,8 +85,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<Driver | 
       phone,
       email,
       license_number,
+      username,
+      password,
       metadata,
     } = body
+
+    // Hash the password
+    const hashedPassword = await bcryptjs.hash(password, 10);
 
     const { data, error } = await db
       .from("drivers")
@@ -95,6 +101,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<Driver | 
           phone: phone || null,
           email: email || null,
           license_number: license_number || null,
+          username: username.trim(),
+          hashed_password: hashedPassword,
           is_active: true,
           metadata: metadata || null,
         },

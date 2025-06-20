@@ -83,6 +83,8 @@ export const drivers = pgTable(
     phone: text("phone"),
     email: text("email"),
     license_number: text("license_number"),
+    username: varchar("username", { length: 255 }).notNull().unique(),
+    hashed_password: text("hashed_password").notNull(),
     is_active: boolean("is_active").notNull().default(true),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -92,6 +94,7 @@ export const drivers = pgTable(
     nameIdx: index("idx_drivers_name").on(table.name),
     isActiveIdx: index("idx_drivers_is_active").on(table.is_active),
     phoneIdx: index("idx_drivers_phone").on(table.phone),
+    usernameIdx: index("idx_drivers_username").on(table.username),
   }),
 );
 

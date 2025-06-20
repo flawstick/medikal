@@ -105,6 +105,7 @@ export async function PUT(
       phone,
       email,
       license_number,
+      username,
       is_active,
       metadata,
     } = body;
@@ -116,6 +117,7 @@ export async function PUT(
         phone: phone || null,
         email: email || null,
         license_number: license_number || null,
+        username: username || null,
         is_active: is_active !== undefined ? is_active : true,
         metadata: metadata || null,
         updated_at: new Date().toISOString(),
