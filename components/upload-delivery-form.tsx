@@ -1225,6 +1225,7 @@ export function UploadDeliveryForm() {
                                 : "",
                             }))
                           }
+                          fromDate={new Date()}
                           initialFocus
                         />
                       </PopoverContent>

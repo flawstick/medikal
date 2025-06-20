@@ -100,6 +100,7 @@ export async function PUT(
       )
     }
 
+    // Parse update payload
     const body: Partial<CreateMissionRequest> & { status?: string; completed_at?: string } = await request.json()
     const {
       type,
@@ -107,6 +108,8 @@ export async function PUT(
       address,
       driver,
       car_number,
+      driver_id,
+      car_id,
       status,
       date_expected,
       completed_at,
@@ -127,12 +130,23 @@ export async function PUT(
       .update({
         type,
         subtype: subtype || null,
-        address: address ? (typeof address === 'string' ? { address, city: '', zip_code: '' } : address) : undefined,
+        address: address
+          ? typeof address === 'string'
+            ? { address, city: '', zip_code: '' }
+            : address
+          : undefined,
+        // Update both string and ID fields
         driver: driver || null,
         car_number: car_number || null,
+        driver_id: driver_id ?? null,
+        car_id: car_id ?? null,
         status,
-        date_expected: date_expected ? new Date(date_expected).toISOString() : null,
-        completed_at: completed_at ? new Date(completed_at).toISOString() : null,
+        date_expected: date_expected
+          ? new Date(date_expected).toISOString()
+          : null,
+        completed_at: completed_at
+          ? new Date(completed_at).toISOString()
+          : null,
         certificates: certificates || null,
         metadata: metadata || null,
         updated_at: new Date().toISOString(),

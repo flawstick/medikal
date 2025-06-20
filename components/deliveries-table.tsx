@@ -15,6 +15,7 @@ import type { Mission, MissionStatus } from "@/lib/types"
 import { TableLoadingSkeleton, LoadingSpinner } from "@/components/loading-states"
 import { getStatusColor, getStatusText, getAllStatuses } from "@/lib/status-helpers"
 import { formatDate, formatTime } from "@/lib/date-helpers"
+import { MissionEditModal } from "@/components/mission-edit-modal"
 
 const ITEMS_PER_PAGE = 15
 
@@ -48,6 +49,8 @@ export function DeliveriesTable({
   const [missionToDelete, setMissionToDelete] = useState<Mission | null>(null)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [missionToUpdate, setMissionToUpdate] = useState<Mission | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [missionToEdit, setMissionToEdit] = useState<Mission | null>(null)
   const [newStatus, setNewStatus] = useState<string>("")
 
   useEffect(() => {
@@ -147,6 +150,11 @@ export function DeliveriesTable({
     setMissionToUpdate(mission)
     setNewStatus(mission.status)
     setStatusDialogOpen(true)
+  }
+
+  const handleEditClick = (mission: Mission) => {
+    setMissionToEdit(mission)
+    setEditDialogOpen(true)
   }
 
   const handleStatusUpdateConfirm = async () => {
@@ -276,6 +284,18 @@ export function DeliveriesTable({
         </DialogContent>
       </Dialog>
       
+      {/* Mission Edit Modal */}
+      <MissionEditModal 
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        mission={missionToEdit}
+        onSuccess={() => {
+          fetchMissions()
+          setEditDialogOpen(false)
+          setMissionToEdit(null)
+        }}
+      />
+      
       <div>
         <div className="rounded-md border overflow-x-auto">
         <Table role="table" aria-label="טבלת משלוחים">
@@ -379,6 +399,13 @@ export function DeliveriesTable({
                         aria-label={`עדכן סטטוס משימה ${mission.id}`}
                       >
                         <Edit className="mr-2 h-4 w-4" aria-hidden="true" /> עדכן סטטוס
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleEditClick(mission)}
+                        role="menuitem"
+                        aria-label={`ערוך משימה ${mission.id}`}
+                      >
+                        <Edit className="mr-2 h-4 w-4" aria-hidden="true" /> עריכה
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
