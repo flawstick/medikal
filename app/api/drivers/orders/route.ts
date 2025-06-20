@@ -42,9 +42,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get date parameter from query string
+    // Get parameters from query string
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get("date");
+    const carParam = searchParams.get("car");
 
     if (!dateParam) {
       return NextResponse.json(
@@ -69,13 +70,21 @@ export async function GET(request: NextRequest) {
     const endOfDay = new Date(requestedDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Query missions for the specific driver and date
-    const { data: driverMissions, error: missionsError } = await db
+    // Build query for missions based on car filter
+    let query = db
       .from("missions")
       .select("*")
       .eq("driver_id", payload.driverId)
       .gte("date_expected", startOfDay.toISOString())
-      .lte("date_expected", endOfDay.toISOString())
+      .lte("date_expected", endOfDay.toISOString());
+
+    // Apply car filter if provided
+    if (carParam) {
+      // Filter by specific car OR missions without assigned car
+      query = query.or(`car_id.eq.${carParam},car_id.is.null`);
+    }
+
+    const { data: driverMissions, error: missionsError } = await query
       .order("date_expected", { ascending: true });
 
     if (missionsError) {
