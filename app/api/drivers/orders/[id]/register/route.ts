@@ -31,19 +31,28 @@ export async function POST(
     // Authenticate
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Authorization token required" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Authorization token required" },
+        { status: 401 },
+      );
     }
     const token = authHeader.substring(7);
     const payload = verifyToken(token);
     if (!payload) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid or expired token" },
+        { status: 401 },
+      );
     }
 
     // Parse mission ID
     const { id } = await params;
     const missionId = parseInt(id, 10);
     if (isNaN(missionId)) {
-      return NextResponse.json({ error: "Invalid mission ID" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid mission ID" },
+        { status: 400 },
+      );
     }
 
     // Fetch existing mission
@@ -57,25 +66,29 @@ export async function POST(
     }
     // Ensure mission belongs to driver
     if (existing.driver_id !== payload.driverId) {
-      return NextResponse.json({ error: "Not authorized to update this mission" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Not authorized to update this mission" },
+        { status: 403 },
+      );
     }
 
-    // Parse body
+    // Parse body: only car_id and image arrays
     const body = await request.json();
     const {
-      driver_id,
       car_id,
       certificate_images,
       package_images,
     }: {
-      driver_id: number;
       car_id: number;
       certificate_images?: string[];
       package_images?: string[];
     } = body;
-    // Validate driver/carma
-    if (driver_id !== payload.driverId) {
-      return NextResponse.json({ error: "driver_id must match authenticated driver" }, { status: 400 });
+    // Validate car_id
+    if (typeof car_id !== "number" || isNaN(car_id)) {
+      return NextResponse.json(
+        { error: "car_id is required and must be a number" },
+        { status: 400 },
+      );
     }
     // Build metadata update
     const newMetadata = {
@@ -84,11 +97,11 @@ export async function POST(
       package_images: package_images || [],
     };
 
-    // Update mission
+    // Update mission: use driverId from JWT
     const { data: updated, error: updateErr } = await db
       .from("missions")
       .update({
-        driver_id,
+        driver_id: payload.driverId,
         car_id,
         status: "completed",
         completed_at: new Date().toISOString(),
@@ -100,12 +113,18 @@ export async function POST(
       .single();
     if (updateErr) {
       console.error("Error updating mission to completed:", updateErr);
-      return NextResponse.json({ error: "Failed to complete mission" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to complete mission" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json(updated as Mission);
   } catch (err) {
     console.error("Error in mission register route:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

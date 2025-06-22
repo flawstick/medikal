@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   if (!authHeader?.startsWith("Bearer ")) {
     return NextResponse.json(
       { error: "Authorization token required" },
-      { status: 401 }
+      { status: 401 },
     );
   }
   const token = authHeader.substring(7);
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: "Invalid or expired token" },
-      { status: 401 }
+      { status: 401 },
     );
   }
   try {
