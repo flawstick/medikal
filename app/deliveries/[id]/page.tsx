@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, Edit, Trash2, Clock, Package, User } from "lucide-react";
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 
 interface Mission {
   id: number;
@@ -398,6 +399,66 @@ export default function MissionDetailPage({
             </div>
           </CardContent>
         </Card>
+
+        {/* Failure Details */}
+        {mission.status === "problem" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-right flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                פרטי כשלון
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-right">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">תאריך כישלון:</span>
+                <span className="font-medium">
+                  {mission.metadata?.date_failed
+                    ? new Date(mission.metadata.date_failed).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })
+                    : "-"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">סיבת כישלון:</span>
+                <span className="font-medium">{mission.metadata?.failure_reason || "-"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">דווח:</span>
+                <span className="font-medium">{mission.metadata?.reported ? "כן" : "לא"}</span>
+              </div>
+              {mission.metadata?.reported && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">לדווח ל:</span>
+                  <span className="font-medium">{mission.metadata?.reported_to || "-"}</span>
+                </div>
+              )}
+              {mission.metadata?.certificate_images?.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground">תמונות תעודות:</span>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {mission.metadata.certificate_images.map((url, idx) => (
+                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        קובץ {idx + 1}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {mission.metadata?.package_images?.length > 0 && (
+                <div>
+                  <span className="text-muted-foreground">תמונות חבילות:</span>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {mission.metadata.package_images.map((url, idx) => (
+                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        קובץ {idx + 1}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Timeline */}
         <Card className="lg:col-span-2">

@@ -56,6 +56,13 @@ export function DeliveriesTable({
   useEffect(() => {
     fetchMissions()
   }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder])
+  // Poll for updates every 15 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchMissions()
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder])
 
   useEffect(() => {
     setCurrentPage(1) // Reset to first page when filters change
