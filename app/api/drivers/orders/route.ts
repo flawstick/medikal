@@ -46,14 +46,52 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get("date");
     const carParam = searchParams.get("car");
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
 
+    // If pagination params provided (or no date), return paginated list of all orders for this driver
+    if (!dateParam && (pageParam !== null || limitParam !== null)) {
+      const page = parseInt(pageParam || "1", 10);
+      const limit = parseInt(limitParam || "20", 10);
+      if (isNaN(page) || page < 1 || isNaN(limit) || limit < 1) {
+        return NextResponse.json(
+          { error: "Invalid pagination parameters" },
+          { status: 400 }
+        );
+      }
+      // Calculate range for Supabase
+      const from = (page - 1) * limit;
+      const to = page * limit - 1;
+      // Fetch paginated missions and total count
+      const query = db
+        .from("missions")
+        .select("*", { count: "exact" })
+        .eq("driver_id", payload.driverId)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+      const { data: missions, count, error: missionsError } = await query;
+      if (missionsError) {
+        console.error("Supabase error:", missionsError);
+        return NextResponse.json(
+          { error: "Failed to fetch missions" },
+          { status: 500 }
+        );
+      }
+      const total = count ?? 0;
+      const totalPages = Math.ceil(total / limit);
+      return NextResponse.json({
+        data: missions,
+        pagination: { page, limit, total, totalPages },
+      });
+    }
+
+    // If we reach here, we expect a date parameter
     if (!dateParam) {
       return NextResponse.json(
         { error: "Date parameter is required (YYYY-MM-DD format)" },
         { status: 400 }
       );
     }
-
     // Parse and validate date
     const requestedDate = new Date(dateParam);
     if (isNaN(requestedDate.getTime())) {
