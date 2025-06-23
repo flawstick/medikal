@@ -11,6 +11,7 @@ interface JWTPayload {
   name: string;
   phone: string;
   email: string;
+  is_active: boolean;
 }
 
 function verifyToken(token: string): JWTPayload | null {
@@ -41,6 +42,13 @@ export async function GET(
       return NextResponse.json(
         { error: "Invalid or expired token" },
         { status: 401 }
+      );
+    }
+    // Ensure driver account is active
+    if (!payload.is_active) {
+      return NextResponse.json(
+        { error: "Driver account is deactivated" },
+        { status: 403 }
       );
     }
 

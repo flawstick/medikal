@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
         name: driverData.name,
         phone: driverData.phone,
         email: driverData.email,
+        is_active: driverData.is_active,
       },
       JWT_SECRET,
       { expiresIn: "24h" },
