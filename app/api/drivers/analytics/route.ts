@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
         { error: "Authorization token required" } as APIResponse,
-        { status: 401 }
+        { status: 401 },
       );
     }
     const token = authHeader.substring(7);
@@ -37,19 +37,13 @@ export async function GET(request: NextRequest) {
     if (!payload) {
       return NextResponse.json(
         { error: "Invalid or expired token" } as APIResponse,
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     const driverId = payload.driverId;
     // Status categories
-    const statuses = [
-      "unassigned",
-      "waiting",
-      "in_progress",
-      "completed",
-      "problem",
-    ];
+    const statuses = ["waiting", "in_progress", "completed", "problem"];
     // Fetch counts per status
     const statusCounts: Record<string, number> = {};
     await Promise.all(
@@ -59,8 +53,8 @@ export async function GET(request: NextRequest) {
           .select("*", { count: "exact", head: true })
           .eq("driver_id", driverId)
           .eq("status", status as string);
-        statusCounts[status] = error ? 0 : count ?? 0;
-      })
+        statusCounts[status] = error ? 0 : (count ?? 0);
+      }),
     );
 
     // Prepare time series for last 7 days (completed missions)
@@ -99,7 +93,7 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching driver analytics:", err);
     return NextResponse.json(
       { error: "Internal server error" } as APIResponse,
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
