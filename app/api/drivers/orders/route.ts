@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
   try {
     // Get authorization header
     const authHeader = request.headers.get("authorization");
-    
+
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
         { error: "Authorization token required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     if (!payload) {
       return NextResponse.json(
         { error: "Invalid or expired token" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       if (isNaN(page) || page < 1 || isNaN(limit) || limit < 1) {
         return NextResponse.json(
           { error: "Invalid pagination parameters" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       // Calculate range for Supabase
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         console.error("Supabase error:", missionsError);
         return NextResponse.json(
           { error: "Failed to fetch missions" },
-          { status: 500 }
+          { status: 500 },
         );
       }
       const total = count ?? 0;
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     if (!dateParam) {
       return NextResponse.json(
         { error: "Date parameter is required (YYYY-MM-DD format)" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     // Parse and validate date
@@ -97,14 +97,14 @@ export async function GET(request: NextRequest) {
     if (isNaN(requestedDate.getTime())) {
       return NextResponse.json(
         { error: "Invalid date format. Use YYYY-MM-DD" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Set start and end of day for the requested date
     const startOfDay = new Date(requestedDate);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(requestedDate);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -122,17 +122,43 @@ export async function GET(request: NextRequest) {
       query = query.or(`car_id.eq.${carParam},car_id.is.null`);
     }
 
-    const { data: driverMissions, error: missionsError } = await query
-      .order("date_expected", { ascending: true });
+    const { data: driverMissions, error: missionsError } = await query.order(
+      "date_expected",
+      { ascending: true },
+    );
 
     if (missionsError) {
       console.error("Supabase error:", missionsError);
       return NextResponse.json(
         { error: "Failed to fetch missions" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
+    // Reorder today's active missions via TSP utility
+    let missionsOrdered = driverMissions || [];
+    try {
+      const activeStatuses = new Set(["waiting", "in_progress"]);
+      const active = missionsOrdered.filter((m) =>
+        activeStatuses.has(m.status),
+      );
+      const others = missionsOrdered.filter(
+        (m) => !activeStatuses.has(m.status),
+      );
+      if (active.length > 1) {
+        const addresses = active.map(
+          (m) =>
+            `${m.address.address}, ${m.address.city} ${m.address.zip_code}`,
+        );
+        const { orderedIndices } = await import("@/lib/routeUtils").then((m) =>
+          m.computeNearestNeighborRoute(addresses),
+        );
+        const activeReordered = orderedIndices.map((i) => active[i]);
+        missionsOrdered = [...activeReordered, ...others];
+      }
+    } catch (e) {
+      console.warn("Route reorder failed:", e);
+    }
     return NextResponse.json({
       date: dateParam,
       driver: {
@@ -140,15 +166,14 @@ export async function GET(request: NextRequest) {
         name: payload.name,
         username: payload.username,
       },
-      missions: driverMissions || [],
-      count: driverMissions?.length || 0,
+      missions: missionsOrdered,
+      count: missionsOrdered.length,
     });
-
   } catch (error) {
     console.error("Driver orders fetch error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
