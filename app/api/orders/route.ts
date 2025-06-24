@@ -58,6 +58,15 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
         `driver.ilike.%${searchTerm}%,type.ilike.%${searchTerm}%,car_number.ilike.%${searchTerm}%,address->>address.ilike.%${searchTerm}%,address->>city.ilike.%${searchTerm}%`
       );
     }
+    // Apply date range filter if provided
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    if (from) {
+      query = query.gte("date_expected", from);
+    }
+    if (to) {
+      query = query.lte("date_expected", to);
+    }
 
     // Apply sorting
     const ascending = sortOrder === "asc";

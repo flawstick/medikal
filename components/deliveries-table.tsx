@@ -1,4 +1,5 @@
 "use client"
+import type { DateRange } from "react-day-picker"
 
 import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -15,7 +16,7 @@ import type { Mission, MissionStatus } from "@/lib/types"
 import { TableLoadingSkeleton, LoadingSpinner } from "@/components/loading-states"
 import { getStatusColor, getStatusText, getAllStatuses } from "@/lib/status-helpers"
 import { formatDate, formatTime } from "@/lib/date-helpers"
-import { MissionEditModal } from "@/components/mission-edit-modal"
+import { MissionActions } from "@/components/mission-actions"
 
 const ITEMS_PER_PAGE = 15
 
@@ -28,6 +29,7 @@ interface DeliveriesTableProps {
   sortBy?: string
   sortOrder?: string
   searchQuery?: string
+  dateRange?: DateRange
 }
 
 export function DeliveriesTable({ 
@@ -37,36 +39,32 @@ export function DeliveriesTable({
   driverFilter = "all",
   sortBy = "created_at", 
   sortOrder = "desc", 
-  searchQuery = "" 
+  searchQuery = "",
+  dateRange,
 }: DeliveriesTableProps) {
   const router = useRouter()
   const [missions, setMissions] = useState<Mission[]>([])
   const [loading, setLoading] = useState(true)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [missionToDelete, setMissionToDelete] = useState<Mission | null>(null)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [missionToUpdate, setMissionToUpdate] = useState<Mission | null>(null)
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [missionToEdit, setMissionToEdit] = useState<Mission | null>(null)
   const [newStatus, setNewStatus] = useState<string>("")
 
   useEffect(() => {
     fetchMissions()
-  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder])
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange])
   // Poll for updates every 15 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       fetchMissions()
     }, 15000)
     return () => clearInterval(interval)
-  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder])
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange])
 
   useEffect(() => {
     setCurrentPage(1) // Reset to first page when filters change
-  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery])
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery, dateRange])
 
   const fetchMissions = async () => {
     try {
@@ -78,6 +76,13 @@ export function DeliveriesTable({
         sortBy,
         sortOrder,
       })
+      // Date range filtering
+      if (dateRange?.from) {
+        params.append("from", dateRange.from.toISOString())
+      }
+      if (dateRange?.to) {
+        params.append("to", dateRange.to.toISOString())
+      }
       
       const response = await fetch(`/api/orders?${params}`)
       if (response.ok) {
@@ -124,34 +129,6 @@ export function DeliveriesTable({
     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
   }
 
-  const handleDeleteClick = (mission: Mission) => {
-    setMissionToDelete(mission)
-    setDeleteDialogOpen(true)
-  }
-
-  const handleDeleteConfirm = async () => {
-    if (!missionToDelete) return
-
-    setIsDeleting(true)
-    try {
-      const response = await fetch(`/api/orders/${missionToDelete.id}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        // Remove the deleted mission from state
-        setMissions(missions => missions.filter(mission => mission.id !== missionToDelete.id))
-        setDeleteDialogOpen(false)
-        setMissionToDelete(null)
-      } else {
-        console.error('Failed to delete mission')
-      }
-    } catch (error) {
-      console.error('Error deleting mission:', error)
-    } finally {
-      setIsDeleting(false)
-    }
-  }
 
   const handleStatusUpdateClick = (mission: Mission) => {
     setMissionToUpdate(mission)
@@ -159,10 +136,6 @@ export function DeliveriesTable({
     setStatusDialogOpen(true)
   }
 
-  const handleEditClick = (mission: Mission) => {
-    setMissionToEdit(mission)
-    setEditDialogOpen(true)
-  }
 
   const handleStatusUpdateConfirm = async () => {
     if (!missionToUpdate || !newStatus) return
@@ -208,39 +181,6 @@ export function DeliveriesTable({
 
   return (
     <>
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-right">מחיקת משימה</AlertDialogTitle>
-            <AlertDialogDescription className="text-right">
-              האם אתה בטוח שברצונך למחוק את משימה #{missionToDelete?.id}?
-              פעולה זו לא ניתנת לביטול.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel disabled={isDeleting}>ביטול</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteConfirm}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {isDeleting ? (
-                <div className="flex items-center">
-                  <LoadingSpinner size="sm" />
-                  <span className="mr-2">מוחק...</span>
-                </div>
-              ) : (
-                "מחק"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-          {isDeleting && (
-            <div aria-live="polite" className="sr-only">
-              מוחק משימה...
-            </div>
-          )}
-        </AlertDialogContent>
-      </AlertDialog>
 
       <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
         <DialogContent>
@@ -291,17 +231,6 @@ export function DeliveriesTable({
         </DialogContent>
       </Dialog>
       
-      {/* Mission Edit Modal */}
-      <MissionEditModal 
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        mission={missionToEdit}
-        onSuccess={() => {
-          fetchMissions()
-          setEditDialogOpen(false)
-          setMissionToEdit(null)
-        }}
-      />
       
       <div>
         <div className="rounded-md border overflow-x-auto">
@@ -407,22 +336,12 @@ export function DeliveriesTable({
                       >
                         <Edit className="mr-2 h-4 w-4" aria-hidden="true" /> עדכן סטטוס
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleEditClick(mission)}
-                        role="menuitem"
-                        aria-label={`ערוך משימה ${mission.id}`}
-                      >
-                        <Edit className="mr-2 h-4 w-4" aria-hidden="true" /> עריכה
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
-                        onClick={() => handleDeleteClick(mission)}
-                        role="menuitem"
-                        aria-label={`מחק משימה ${mission.id}`}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> מחק משימה
-                      </DropdownMenuItem>
+                      <MissionActions 
+                        mission={mission}
+                        onUpdate={fetchMissions}
+                        onDelete={() => setMissions(missions => missions.filter(m => m.id !== mission.id))}
+                        asDropdownItems={true}
+                      />
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

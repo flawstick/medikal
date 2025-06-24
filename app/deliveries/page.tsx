@@ -1,32 +1,55 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { DeliveriesTable } from "@/components/deliveries-table"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Filter, ArrowUpDown, Car, User } from "lucide-react"
-import Link from "next/link"
-import type { Car, Driver } from "@/lib/types"
+import React, { useState, useEffect } from "react";
+import type { DateRange } from "react-day-picker";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { DeliveriesTable } from "@/components/deliveries-table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Plus,
+  Search,
+  Filter,
+  ArrowUpDown,
+  Car as CarIcon,
+  User,
+} from "lucide-react";
+import Link from "next/link";
+import type { Car, Driver } from "@/lib/types";
 
 export default function DeliveriesPage() {
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [carFilter, setCarFilter] = useState("all")
-  const [driverFilter, setDriverFilter] = useState("all")
-  const [sortBy, setSortBy] = useState("created_at")
-  const [sortOrder, setSortOrder] = useState("desc")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [cars, setCars] = useState<Car[]>([])
-  const [drivers, setDrivers] = useState<Driver[]>([])
-  
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [carFilter, setCarFilter] = useState("all");
+  const [driverFilter, setDriverFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+
   // Fetch cars and drivers for filter options
   useEffect(() => {
     const fetchFiltersData = async () => {
       try {
         const [carsResponse, driversResponse] = await Promise.all([
-          fetch('/api/cars?status=active'),
-          fetch('/api/drivers?status=active')
+          fetch("/api/cars?status=active"),
+          fetch("/api/drivers?status=active"),
         ]);
 
         if (carsResponse.ok) {
@@ -39,7 +62,7 @@ export default function DeliveriesPage() {
           setDrivers(driversData);
         }
       } catch (error) {
-        console.error('Error fetching filter data:', error);
+        console.error("Error fetching filter data:", error);
       }
     };
 
@@ -51,7 +74,9 @@ export default function DeliveriesPage() {
       <div className="flex flex-col items-end gap-2 md:flex-row md:justify-between md:items-center">
         <div className="text-right">
           <h1 className="text-3xl font-bold tracking-tight">משלוחים</h1>
-          <p className="text-muted-foreground mt-1">ניהול וצפייה בכל המשלוחים</p>
+          <p className="text-muted-foreground mt-1">
+            ניהול וצפייה בכל המשלוחים
+          </p>
         </div>
         <Button size="lg" asChild>
           <Link href="/upload">
@@ -64,26 +89,65 @@ export default function DeliveriesPage() {
       <Card className="shadow-sm">
         <CardHeader className="space-y-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-right text-xl">כל המשלוחים</CardTitle>
-            {(statusFilter !== "all" || carFilter !== "all" || driverFilter !== "all" || searchQuery) && (
+            <CardTitle className="flex flex-row items-center justify-between text-right text-xl w-full">
+              <span>כל המשלוחים</span>
+              {/* Date Range Popover */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-52">
+                    <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                    {dateRange?.from && dateRange?.to
+                      ? `${format(dateRange.from, "P")} - ${format(
+                          dateRange.to,
+                          "P",
+                        )}`
+                      : "טווח תאריכים"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                    className="rounded-lg border shadow-sm"
+                  />
+                </PopoverContent>
+              </Popover>
+            </CardTitle>
+            {(statusFilter !== "all" ||
+              carFilter !== "all" ||
+              driverFilter !== "all" ||
+              searchQuery) && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>מסננים פעילים:</span>
                 {statusFilter !== "all" && (
                   <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
-                    סטטוס: {statusFilter === "unassigned" ? "ללא הקצאה" : 
-                             statusFilter === "waiting" ? "ממתין" :
-                             statusFilter === "in_progress" ? "בדרך" :
-                             statusFilter === "completed" ? "הושלם" : "בעיה"}
+                    סטטוס:{" "}
+                    {statusFilter === "unassigned"
+                      ? "ללא הקצאה"
+                      : statusFilter === "waiting"
+                        ? "ממתין"
+                        : statusFilter === "in_progress"
+                          ? "בדרך"
+                          : statusFilter === "completed"
+                            ? "הושלם"
+                            : "בעיה"}
                   </span>
                 )}
                 {carFilter !== "all" && (
                   <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
-                    רכב: {cars.find(c => c.id.toString() === carFilter)?.plate_number || carFilter}
+                    רכב:{" "}
+                    {cars.find((c) => c.id.toString() === carFilter)
+                      ?.plate_number || carFilter}
                   </span>
                 )}
                 {driverFilter !== "all" && (
                   <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
-                    נהג: {drivers.find(d => d.id.toString() === driverFilter)?.name || driverFilter}
+                    נהג:{" "}
+                    {drivers.find((d) => d.id.toString() === driverFilter)
+                      ?.name || driverFilter}
                   </span>
                 )}
                 {searchQuery && (
@@ -94,20 +158,20 @@ export default function DeliveriesPage() {
               </div>
             )}
           </div>
-          
+
           {/* Filters and Search */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             {/* Search */}
             <div className="relative flex-1 max-w-xs order-3 md:order-1">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="חפש משלוחים..." 
+              <Input
+                placeholder="חפש משלוחים..."
                 className="pr-10 text-right"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            
+
             {/* Filter and Sort Controls */}
             <div className="flex gap-2 order-1 md:order-2 flex-wrap">
               {/* Status Filter */}
@@ -117,26 +181,70 @@ export default function DeliveriesPage() {
                   <SelectValue placeholder="סטטוס" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="hover:bg-transparent hover:text-foreground">כל הסטטוסים</SelectItem>
-                  <SelectItem value="unassigned" className="hover:bg-transparent hover:text-foreground">ללא הקצאה</SelectItem>
-                  <SelectItem value="waiting" className="hover:bg-transparent hover:text-foreground">ממתין</SelectItem>
-                  <SelectItem value="in_progress" className="hover:bg-transparent hover:text-foreground">בדרך</SelectItem>
-                  <SelectItem value="completed" className="hover:bg-transparent hover:text-foreground">הושלם</SelectItem>
-                  <SelectItem value="problem" className="hover:bg-transparent hover:text-foreground">בעיה</SelectItem>
+                  <SelectItem
+                    value="all"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    כל הסטטוסים
+                  </SelectItem>
+                  <SelectItem
+                    value="unassigned"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    ללא הקצאה
+                  </SelectItem>
+                  <SelectItem
+                    value="waiting"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    ממתין
+                  </SelectItem>
+                  <SelectItem
+                    value="in_progress"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    בדרך
+                  </SelectItem>
+                  <SelectItem
+                    value="completed"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    הושלם
+                  </SelectItem>
+                  <SelectItem
+                    value="problem"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    בעיה
+                  </SelectItem>
                 </SelectContent>
               </Select>
 
               {/* Car Filter */}
               <Select value={carFilter} onValueChange={setCarFilter}>
                 <SelectTrigger className="w-40">
-                  <Car className="h-4 w-4 ml-2" />
+                  <CarIcon className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="רכב" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="hover:bg-transparent hover:text-foreground">כל הרכבים</SelectItem>
-                  <SelectItem value="unassigned" className="hover:bg-transparent hover:text-foreground">ללא רכב</SelectItem>
+                  <SelectItem
+                    value="all"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    כל הרכבים
+                  </SelectItem>
+                  <SelectItem
+                    value="unassigned"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    ללא רכב
+                  </SelectItem>
                   {cars.map((car) => (
-                    <SelectItem key={car.id} value={car.id.toString()} className="hover:bg-transparent hover:text-foreground">
+                    <SelectItem
+                      key={car.id}
+                      value={car.id.toString()}
+                      className="hover:bg-transparent hover:text-foreground"
+                    >
                       {car.plate_number}
                       {car.make && car.model && ` - ${car.make} ${car.model}`}
                     </SelectItem>
@@ -151,17 +259,31 @@ export default function DeliveriesPage() {
                   <SelectValue placeholder="נהג" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="hover:bg-transparent hover:text-foreground">כל הנהגים</SelectItem>
-                  <SelectItem value="unassigned" className="hover:bg-transparent hover:text-foreground">ללא נהג</SelectItem>
+                  <SelectItem
+                    value="all"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    כל הנהגים
+                  </SelectItem>
+                  <SelectItem
+                    value="unassigned"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    ללא נהג
+                  </SelectItem>
                   {drivers.map((driver) => (
-                    <SelectItem key={driver.id} value={driver.id.toString()} className="hover:bg-transparent hover:text-foreground">
+                    <SelectItem
+                      key={driver.id}
+                      value={driver.id.toString()}
+                      className="hover:bg-transparent hover:text-foreground"
+                    >
                       {driver.name}
                       {driver.phone && ` (${driver.phone})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              
+
               {/* Sort By */}
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-40">
@@ -169,37 +291,68 @@ export default function DeliveriesPage() {
                   <SelectValue placeholder="מיון לפי" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="created_at" className="hover:bg-transparent hover:text-foreground">תאריך יצירה</SelectItem>
-                  <SelectItem value="updated_at" className="hover:bg-transparent hover:text-foreground">עדכון אחרון</SelectItem>
-                  <SelectItem value="time_delivered" className="hover:bg-transparent hover:text-foreground">זמן משלוח</SelectItem>
-                  <SelectItem value="id" className="hover:bg-transparent hover:text-foreground">מספר משלוח</SelectItem>
+                  <SelectItem
+                    value="created_at"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    תאריך יצירה
+                  </SelectItem>
+                  <SelectItem
+                    value="updated_at"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    עדכון אחרון
+                  </SelectItem>
+                  <SelectItem
+                    value="time_delivered"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    זמן משלוח
+                  </SelectItem>
+                  <SelectItem
+                    value="id"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    מספר משלוח
+                  </SelectItem>
                 </SelectContent>
               </Select>
-              
+
               {/* Sort Order */}
               <Select value={sortOrder} onValueChange={setSortOrder}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="desc" className="hover:bg-transparent hover:text-foreground">חדש לישן</SelectItem>
-                  <SelectItem value="asc" className="hover:bg-transparent hover:text-foreground">ישן לחדש</SelectItem>
+                  <SelectItem
+                    value="desc"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    חדש לישן
+                  </SelectItem>
+                  <SelectItem
+                    value="asc"
+                    className="hover:bg-transparent hover:text-foreground"
+                  >
+                    ישן לחדש
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <DeliveriesTable 
+          <DeliveriesTable
             statusFilter={statusFilter}
             carFilter={carFilter}
             driverFilter={driverFilter}
             sortBy={sortBy}
             sortOrder={sortOrder}
             searchQuery={searchQuery}
+            dateRange={dateRange}
           />
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

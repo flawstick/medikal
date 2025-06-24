@@ -6,9 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, Edit, Trash2, Clock, Package, User } from "lucide-react";
+import { ArrowRight, Clock, Package, User } from "lucide-react";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
+import { MissionActions } from "@/components/mission-actions";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "@/components/ui/carousel";
+import { Clipboard, Plus } from "lucide-react";
 
 interface Mission {
   id: number;
@@ -30,6 +46,8 @@ interface Mission {
   metadata?: {
     client_name?: string;
     phone_number?: string;
+    certificate_images?: string[];
+    package_images?: string[];
   };
 }
 
@@ -86,6 +104,10 @@ export default function MissionDetailPage({
   const resolvedParams = use(params);
   const router = useRouter();
   const [mission, setMission] = useState<Mission | null>(null);
+  // Public R2 bucket URL prefix for stored keys
+  const R2_PUBLIC_URL =
+    process.env.NEXT_PUBLIC_R2_PUBLIC_URL ||
+    "https://pub-935a9967c0664658862019699749d4f6.r2.dev";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -246,11 +268,23 @@ export default function MissionDetailPage({
     );
   }
 
+  // Build date displays
   const createdDate = formatDateTime(mission.created_at);
   const updatedDate = formatDateTime(mission.updated_at);
   const deliveredDate = mission.completed_at
     ? formatDateTime(mission.completed_at)
     : null;
+  // Normalize R2 image keys into full public URLs
+  const rawPackage = mission.metadata?.package_images || [];
+  const packageImages = rawPackage
+    .filter((u): u is string => Boolean(u))
+    .map((url) => (url.startsWith("http") ? url : `${R2_PUBLIC_URL}/${url}`));
+  const rawCertificates = mission.metadata?.certificate_images || [];
+  const certificateImages = rawCertificates
+    .filter((u): u is string => Boolean(u))
+    .map((url) => (url.startsWith("http") ? url : `${R2_PUBLIC_URL}/${url}`));
+  console.log("Package Images:", packageImages);
+  console.log("Certificate Images:", certificateImages);
 
   return (
     <div className="space-y-6">
@@ -285,20 +319,11 @@ export default function MissionDetailPage({
             </div>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Edit className="ml-2 h-4 w-4" />
-            עריכה
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-          >
-            <Trash2 className="ml-2 h-4 w-4" />
-            מחיקה
-          </Button>
-        </div>
+        <MissionActions 
+          mission={mission}
+          onUpdate={fetchMission}
+          showLabels={true}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -414,42 +439,63 @@ export default function MissionDetailPage({
                 <span className="text-muted-foreground">תאריך כישלון:</span>
                 <span className="font-medium">
                   {mission.metadata?.date_failed
-                    ? new Date(mission.metadata.date_failed).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })
+                    ? new Date(mission.metadata.date_failed).toLocaleString(
+                        "he-IL",
+                        { dateStyle: "short", timeStyle: "short" },
+                      )
                     : "-"}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">סיבת כישלון:</span>
-                <span className="font-medium">{mission.metadata?.failure_reason || "-"}</span>
+                <span className="font-medium">
+                  {mission.metadata?.failure_reason || "-"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">דווח:</span>
-                <span className="font-medium">{mission.metadata?.reported ? "כן" : "לא"}</span>
+                <span className="font-medium">
+                  {mission.metadata?.reported ? "כן" : "לא"}
+                </span>
               </div>
               {mission.metadata?.reported && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">לדווח ל:</span>
-                  <span className="font-medium">{mission.metadata?.reported_to || "-"}</span>
+                  <span className="font-medium">
+                    {mission.metadata?.reported_to || "-"}
+                  </span>
                 </div>
               )}
-              {mission.metadata?.certificate_images?.length > 0 && (
+              {certificateImages.length > 0 && (
                 <div>
                   <span className="text-muted-foreground">תמונות תעודות:</span>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {mission.metadata.certificate_images.map((url, idx) => (
-                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {certificateImages.map((url, idx) => (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
                         קובץ {idx + 1}
                       </a>
                     ))}
                   </div>
                 </div>
               )}
-              {mission.metadata?.package_images?.length > 0 && (
+              {packageImages.length > 0 && (
                 <div>
                   <span className="text-muted-foreground">תמונות חבילות:</span>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {mission.metadata.package_images.map((url, idx) => (
-                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {packageImages.map((url, idx) => (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
                         קובץ {idx + 1}
                       </a>
                     ))}
@@ -458,6 +504,117 @@ export default function MissionDetailPage({
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* Package Images */}
+        {packageImages.length > 0 && (
+          <div className="space-y-2 text-right">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                <span className="text-lg font-medium">תמונות חבילות ({packageImages.length})</span>
+              </div>
+              {/* Carousel trigger moved to thumbnails below */}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {packageImages.map((url, idx) => (
+                <div
+                  key={idx}
+                  className="w-24 h-24 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer"
+                >
+                  <img
+                    src={url}
+                    alt={`חבילת תמונה ${idx + 1}`}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                </div>
+              ))}
+              {/* Show All trigger */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <div className="w-24 h-24 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <ArrowRight className="h-6 w-6 text-muted-foreground rotate-180" />
+                    <span className="text-xs text-muted-foreground mt-1">הצג הכל</span>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[80vh]">
+                  <DialogHeader>
+                    <DialogTitle>תמונות חבילות</DialogTitle>
+                  </DialogHeader>
+                  <Carousel style={{ direction: 'ltr' }}>
+                    <CarouselPrevious />
+                    <CarouselContent className="h-[400px]">
+                      {packageImages.map((url, idx) => (
+                        <CarouselItem key={idx}>
+                          <img
+                            src={url}
+                            alt={`חבילת תמונה ${idx + 1}`}
+                            className="h-full w-full object-cover rounded-lg"
+                          />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselNext />
+                  </Carousel>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        )}
+        {/* Certificate Images */}
+        {certificateImages.length > 0 && (
+          <div className="space-y-2 text-right mt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clipboard className="h-5 w-5" />
+                <span className="text-lg font-medium">תמונות תעודות ({certificateImages.length})</span>
+              </div>
+              {/* Carousel trigger moved to thumbnails below */}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {certificateImages.map((url, idx) => (
+                <div
+                  key={idx}
+                  className="w-24 h-24 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer"
+                >
+                  <img
+                    src={url}
+                    alt={`תעודת תמונה ${idx + 1}`}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                </div>
+              ))}
+              {/* Show All trigger */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <div className="w-24 h-24 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <ArrowRight className="h-6 w-6 text-muted-foreground rotate-180" />
+                    <span className="text-xs text-muted-foreground mt-1">הצג הכל</span>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[80vh]">
+                  <DialogHeader>
+                    <DialogTitle>תמונות תעודות</DialogTitle>
+                  </DialogHeader>
+                  <Carousel style={{ direction: 'ltr' }}>
+                    <CarouselPrevious />
+                    <CarouselContent className="h-[400px]">
+                      {certificateImages.map((url, idx) => (
+                        <CarouselItem key={idx}>
+                          <img
+                            src={url}
+                            alt={`תעודת תמונה ${idx + 1}`}
+                            className="h-full w-full object-cover rounded-lg"
+                          />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselNext />
+                  </Carousel>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
         )}
 
         {/* Timeline */}

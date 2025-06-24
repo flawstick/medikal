@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useRouter } from "next/navigation";
+import { toDateLocalString, fromDateLocalString } from "@/lib/date-helpers";
 import { useToast } from "@/hooks/use-toast";
 import { read, utils } from "xlsx";
 import type {
@@ -98,10 +99,7 @@ export function UploadDeliveryForm() {
 
   // Autocomplete refs
   const addressInputRef = useRef<HTMLInputElement>(null);
-  const cityInputRef = useRef<HTMLInputElement>(null);
   const [addressAutocomplete, setAddressAutocomplete] =
-    useState<google.maps.places.Autocomplete | null>(null);
-  const [cityAutocomplete, setCityAutocomplete] =
     useState<google.maps.places.Autocomplete | null>(null);
 
   // Fetch cars and drivers data on mount
@@ -188,41 +186,57 @@ export function UploadDeliveryForm() {
       const addressAuto = new window.google.maps.places.Autocomplete(
         addressInputRef.current,
         {
-          types: ["address"],
+          types: ["geocode"],
           componentRestrictions: { country: "il" },
+          fields: ["address_components", "formatted_address", "geometry", "name"],
         },
       );
 
       addressAuto.addListener("place_changed", () => {
         const place = addressAuto.getPlace();
+        console.log("Google Places result:", place); // Debug log
+        
         if (place.formatted_address) {
           const addressComponents = place.address_components || [];
+          console.log("Address components:", addressComponents); // Debug log
 
           // Extract address details
           let streetNumber = "";
           let route = "";
           let city = "";
           let postalCode = "";
+          let sublocality = "";
 
           addressComponents.forEach((component: GoogleMapsAddressComponent) => {
             const types = component.types;
+            console.log(`Component: ${component.long_name}, Types: ${types.join(", ")}`); // Debug log
+            
             if (types.includes("street_number")) {
               streetNumber = component.long_name;
             } else if (types.includes("route")) {
               route = component.long_name;
-            } else if (types.includes("locality")) {
-              city = component.long_name;
+            } else if (types.includes("sublocality") || types.includes("sublocality_level_1")) {
+              sublocality = component.long_name;
+            } else if (types.includes("locality") || types.includes("administrative_area_level_2") || types.includes("administrative_area_level_1")) {
+              if (!city) { // Take the first city-like component we find
+                city = component.long_name;
+              }
             } else if (types.includes("postal_code")) {
               postalCode = component.long_name;
             }
           });
 
-          const fullAddress = `${route} ${streetNumber}`.trim();
+          // Use sublocality if no city found, as sometimes Israeli neighborhoods are in sublocality
+          const finalCity = city || sublocality;
+          const streetAddress = `${route} ${streetNumber}`.trim();
+          const fullAddress = finalCity ? `${streetAddress}, ${finalCity}` : streetAddress;
+
+          console.log(`Final address: ${fullAddress}, City: ${finalCity}`); // Debug log
 
           setFormData((prev) => ({
             ...prev,
             address: fullAddress || place.formatted_address || "",
-            city: city || prev.city,
+            city: finalCity || "",
             zip_code: postalCode || prev.zip_code,
           }));
         }
@@ -231,28 +245,6 @@ export function UploadDeliveryForm() {
       setAddressAutocomplete(addressAuto);
     }
 
-    // City autocomplete
-    if (cityInputRef.current && !cityAutocomplete) {
-      const cityAuto = new window.google.maps.places.Autocomplete(
-        cityInputRef.current,
-        {
-          types: ["(cities)"],
-          componentRestrictions: { country: "il" },
-        },
-      );
-
-      cityAuto.addListener("place_changed", () => {
-        const place = cityAuto.getPlace();
-        if (place.name) {
-          setFormData((prev) => ({
-            ...prev,
-            city: place.name || "",
-          }));
-        }
-      });
-
-      setCityAutocomplete(cityAuto);
-    }
   };
 
   interface ParsedMission {
@@ -322,7 +314,7 @@ export function UploadDeliveryForm() {
           // Keep backward compatibility fields for now
           driver: formData.driver && formData.driver !== "none" ? formData.driver : null,
           car_number: formData.car_number || null,
-          date_expected: formData.date_expected || null,
+          date_expected: formData.date_expected ? fromDateLocalString(formData.date_expected) : null,
           metadata: {
             client_name: formData.metadata.client_name || null,
             phone_number: formData.metadata.phone_number || null,
@@ -1003,7 +995,8 @@ export function UploadDeliveryForm() {
                             איסוף מנופים
                           </SelectItem>
                           <SelectItem value="הצבה בלבד">הצבה בלבד</SelectItem>
-                          <SelectItem value="אספקת מנסה">אספקת מנסה</SelectItem>
+                          <SelectItem value="בהדרכה בלבד">בהדרכה בלבד</SelectItem>
+                          <SelectItem value="אספקת מנסרה">אספקת מנסרה</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1085,46 +1078,31 @@ export function UploadDeliveryForm() {
                 </div>
 
                 {/* Address + City */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:order-2">
-                    <Label htmlFor="address" className="text-right block">
-                      כתובת *
-                    </Label>
-                    <Input
-                      ref={addressInputRef}
-                      id="address"
-                      required
-                      value={formData.address}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          address: e.target.value,
-                        }))
-                      }
-                      placeholder="התחל להקליד כתובת..."
-                      className="text-right"
-                    />
-                  </div>
-
-                  <div className="space-y-2 md:order-1">
-                    <Label htmlFor="city" className="text-right block">
-                      עיר *
-                    </Label>
-                    <Input
-                      ref={cityInputRef}
-                      id="city"
-                      required
-                      value={formData.city}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          city: e.target.value,
-                        }))
-                      }
-                      placeholder="התחל להקליד שם עיר..."
-                      className="text-right"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="full_address" className="text-right block">
+                    כתובת מלאה *
+                  </Label>
+                  <Input
+                    ref={addressInputRef}
+                    id="full_address"
+                    required
+                    value={formData.address}
+                    onChange={(e) => {
+                      // Allow manual editing but don't parse automatically
+                      // Google Places Autocomplete will handle the parsing
+                      const value = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        address: value,
+                        // Keep city as-is for manual editing, Google Places will update it
+                      }));
+                    }}
+                    placeholder="מקור 440, תל אביב"
+                    className="text-right"
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    התחל להקליד כתובת כולל עיר (למשל: מקור 440, תל אביב)
+                  </p>
                 </div>
 
                 {/* Zip Code + Driver */}
@@ -1221,7 +1199,7 @@ export function UploadDeliveryForm() {
                             setFormData((prev) => ({
                               ...prev,
                               date_expected: date
-                                ? date.toISOString().slice(0, 16)
+                                ? toDateLocalString(date)
                                 : "",
                             }))
                           }

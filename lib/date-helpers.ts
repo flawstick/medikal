@@ -131,3 +131,36 @@ export function getStartOfWeek(date: Date = new Date()): Date {
   startOfWeek.setHours(0, 0, 0, 0)
   return startOfWeek
 }
+
+// Convert Date to date input format without timezone conversion (date only, no time)
+export function toDateLocalString(date: Date | string | null): string {
+  if (!date) return ""
+  
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date
+    
+    // Use local timezone values directly instead of converting to UTC
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    
+    return `${year}-${month}-${day}`
+  } catch (error) {
+    console.error("Error converting to date string:", error)
+    return ""
+  }
+}
+
+// Convert date input value to ISO string for API (sets time to start of day)
+export function fromDateLocalString(dateValue: string): string {
+  if (!dateValue) return ""
+  
+  try {
+    // Create date from input date and set to start of day UTC
+    const date = new Date(dateValue + 'T00:00:00Z')
+    return date.toISOString()
+  } catch (error) {
+    console.error("Error converting from date string:", error)
+    return ""
+  }
+}
