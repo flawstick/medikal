@@ -49,6 +49,7 @@ interface Mission {
     certificate_images?: string[];
     package_images?: string[];
     failure_images?: string[];
+    failure_location?: { lat: number; lng: number };
   };
 }
 
@@ -469,6 +470,19 @@ export default function MissionDetailPage({
                   <span className="font-medium">
                     {mission.metadata?.reported_to || "-"}
                   </span>
+                </div>
+              )}
+              {mission.metadata?.failure_location && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">מיקום כשלון:</span>
+                  <a
+                    href={`https://maps.google.com/?q=${mission.metadata.failure_location.lat},${mission.metadata.failure_location.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    פתח במפות
+                  </a>
                 </div>
               )}
               {certificateImages.length > 0 && (

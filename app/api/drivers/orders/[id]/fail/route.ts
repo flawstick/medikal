@@ -88,12 +88,14 @@ export async function POST(
     const {
       car_id,
       failure_images, // New field for failure images
+      failure_location, // New field for failure location
       reason,
       reported,
       reported_to,
     }: {
       car_id: number;
       failure_images?: string[]; // New field for failure images
+      failure_location?: { lat: number; lng: number }; // New field for failure location
       reason: string;
       reported?: boolean;
       reported_to?: string;
@@ -117,6 +119,7 @@ export async function POST(
     const newMeta = {
       ...prevMeta,
       failure_images: failure_images ?? [], // New field for failure images
+      failure_location: failure_location ?? null, // New field for failure location
       failure_reason: reason,
       reported: !!reported,
       reported_to: reported_to || prevMeta.reported_to || null,
