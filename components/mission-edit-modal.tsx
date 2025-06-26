@@ -8,20 +8,44 @@ declare global {
 }
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, MapPin, Plus, X, Package, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { formatDate, toDateLocalString, fromDateLocalString } from "@/lib/date-helpers";
+import {
+  formatDate,
+  toDateLocalString,
+  fromDateLocalString,
+} from "@/lib/date-helpers";
 import type { Mission, Car, Driver, Certificate } from "@/lib/types";
-import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
+import {
+  GoogleMapsPlace,
+  GoogleMapsAddressComponent,
+} from "@/lib/types";
+import { useRef } from "react";
 
 interface MissionEditModalProps {
   mission: Mission | null;
@@ -30,13 +54,20 @@ interface MissionEditModalProps {
   onSuccess: () => void;
 }
 
-export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: MissionEditModalProps) {
+export function MissionEditModal({
+  mission,
+  open,
+  onOpenChange,
+  onSuccess,
+}: MissionEditModalProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [cars, setCars] = useState<Car[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [addressValue, setAddressValue] = useState<{ label: string; value: any } | null>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const [addressAutocomplete, setAddressAutocomplete] =
+    useState<google.maps.places.Autocomplete | null>(null);
 
   const [formData, setFormData] = useState({
     type: "",
@@ -60,10 +91,11 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
   useEffect(() => {
     if (mission) {
       const parsedAddress = mission.address as any;
-      const initialAddress = parsedAddress?.address || parsedAddress?.street || "";
+      const initialAddress =
+        parsedAddress?.address || parsedAddress?.street || "";
       const initialCity = parsedAddress?.city || "";
       const initialZip = parsedAddress?.zip_code || "";
-      
+
       setFormData({
         type: mission.type || "",
         subtype: mission.subtype || "",
@@ -72,7 +104,9 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
         zip_code: initialZip,
         driver_id: mission.driver_id,
         car_id: mission.car_id,
-        date_expected: mission.date_expected ? toDateLocalString(mission.date_expected) : "",
+        date_expected: mission.date_expected
+          ? toDateLocalString(mission.date_expected)
+          : "",
         status: mission.status || "unassigned",
         metadata: {
           client_name: mission.metadata?.client_name || "",
@@ -81,28 +115,118 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
         },
         certificates: mission.certificates || [],
       });
-
-      if (initialAddress) {
-        setAddressValue({
-          label: initialAddress,
-          value: {
-            description: initialAddress,
-            place_id: `initial-${mission.id}`,
-          },
-        });
-      } else {
-        setAddressValue(null);
-      }
     }
   }, [mission]);
+
+  // Load Google Maps script and initialize autocomplete
+  useEffect(() => {
+    const loadGoogleMapsScript = () => {
+      if (window.google && window.google.maps) {
+        initializeAutocomplete();
+        return;
+      }
+
+      // Avoid duplicate script injection
+      if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+        return;
+      }
+
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        console.warn(
+          "Google Maps API key not found. Autocomplete will not be available.",
+        );
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&language=he`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        initializeAutocomplete();
+      };
+      script.onerror = () => {
+        console.error("Failed to load Google Maps API");
+      };
+      document.head.appendChild(script);
+    };
+
+    if (open) {
+      loadGoogleMapsScript();
+    }
+
+    // Cleanup function to remove listeners and avoid memory leaks
+    return () => {
+      if (addressAutocomplete) {
+        window.google.maps.event.clearInstanceListeners(addressAutocomplete);
+        setAddressAutocomplete(null);
+      }
+    };
+  }, [open]);
+
+  const initializeAutocomplete = () => {
+    if (!window.google || !window.google.maps || !addressInputRef.current) return;
+
+    if (!addressAutocomplete) {
+      const autocomplete = new window.google.maps.places.Autocomplete(
+        addressInputRef.current,
+        {
+          types: ["geocode"],
+          componentRestrictions: { country: "il" },
+          fields: ["address_components", "formatted_address", "geometry", "name"],
+        },
+      );
+
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place.formatted_address) {
+          const addressComponents = place.address_components || [];
+          let streetNumber = "";
+          let route = "";
+          let city = "";
+          let postalCode = "";
+          let sublocality = "";
+
+          addressComponents.forEach((component: GoogleMapsAddressComponent) => {
+            const types = component.types;
+            if (types.includes("street_number")) {
+              streetNumber = component.long_name;
+            } else if (types.includes("route")) {
+              route = component.long_name;
+            } else if (types.includes("sublocality") || types.includes("sublocality_level_1")) {
+              sublocality = component.long_name;
+            } else if (types.includes("locality")) {
+              city = component.long_name;
+            } else if (types.includes("postal_code")) {
+              postalCode = component.long_name;
+            }
+          });
+
+          const finalCity = city || sublocality;
+          const streetAddress = `${route} ${streetNumber}`.trim();
+          const fullAddress = finalCity ? `${streetAddress}, ${finalCity}` : streetAddress;
+
+          setFormData((prev) => ({
+            ...prev,
+            address: fullAddress || place.formatted_address || "",
+            city: finalCity || "",
+            zip_code: postalCode || prev.zip_code,
+          }));
+        }
+      });
+
+      setAddressAutocomplete(autocomplete);
+    }
+  };
 
   // Fetch cars and drivers
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [carsResponse, driversResponse] = await Promise.all([
-          fetch('/api/cars?status=active'),
-          fetch('/api/drivers?status=active')
+          fetch("/api/cars?status=active"),
+          fetch("/api/drivers?status=active"),
         ]);
 
         if (carsResponse.ok) {
@@ -115,7 +239,7 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
           setDrivers(driversData);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
       }
     };
 
@@ -126,25 +250,27 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
 
   const handleSubmit = async () => {
     if (!mission) return;
-    
+
     setLoading(true);
     try {
       const updateData = {
         type: formData.type,
         subtype: formData.subtype || null,
         address: {
-          address: formData.address,
-          city: formData.city,
-          zip_code: formData.zip_code,
+          address: formData.address.trim(),
+          city: formData.city.trim(),
+          zip_code: formData.zip_code || "",
         },
-        driver: formData.driver_id != null
-          ? drivers.find((d) => d.id === formData.driver_id)?.name || null
-          : null,
-        car_number: formData.car_id != null
-          ? cars.find((c) => c.id === formData.car_id)?.plate_number || null
-          : null,
         driver_id: formData.driver_id,
         car_id: formData.car_id,
+        driver:
+          formData.driver_id != null
+            ? drivers.find((d) => d.id === formData.driver_id)?.name || null
+            : null,
+        car_number:
+          formData.car_id != null
+            ? cars.find((c) => c.id === formData.car_id)?.plate_number || null
+            : null,
         date_expected: formData.date_expected
           ? fromDateLocalString(formData.date_expected)
           : null,
@@ -184,28 +310,28 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
   };
 
   const addCertificate = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       certificates: [
         ...prev.certificates,
-        { certificate_number: "", packages_count: 1, notes: "" }
+        { certificate_number: "", packages_count: 1, notes: "" },
       ],
     }));
   };
 
   const removeCertificate = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      certificates: prev.certificates.filter((_, i) => i !== index)
+      certificates: prev.certificates.filter((_, i) => i !== index),
     }));
   };
 
   const updateCertificate = (index: number, field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      certificates: prev.certificates.map((cert, i) => 
-        i === index ? { ...cert, [field]: value } : cert
-      )
+      certificates: prev.certificates.map((cert, i) =>
+        i === index ? { ...cert, [field]: value } : cert,
+      ),
     }));
   };
 
@@ -213,9 +339,19 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-4xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest(".pac-container")) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
-          <DialogTitle className="text-right">עריכת משימה #{mission.id}</DialogTitle>
+          <DialogTitle className="text-right">
+            עריכת משימה #{mission.id}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -224,8 +360,15 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
             <div className="grid grid-cols-1 gap-4">
               {formData.type === "מנופים" && (
                 <div>
-                  <Label htmlFor="subtype" className="text-right block mb-2">תת-סוג *</Label>
-                  <Select value={formData.subtype} onValueChange={(value) => setFormData(prev => ({ ...prev, subtype: value }))}>
+                  <Label htmlFor="subtype" className="text-right block mb-2">
+                    תת-סוג *
+                  </Label>
+                  <Select
+                    value={formData.subtype}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, subtype: value }))
+                    }
+                  >
                     <SelectTrigger className="text-right">
                       <SelectValue placeholder="בחר תת-סוג" />
                     </SelectTrigger>
@@ -241,14 +384,19 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
               )}
 
               <div>
-                <Label htmlFor="type" className="text-right block mb-2">סוג משימה *</Label>
-                <Select value={formData.type} onValueChange={(value) => {
-                  setFormData(prev => ({
-                    ...prev,
-                    type: value,
-                    subtype: value === "מנופים" ? prev.subtype : "",
-                  }));
-                }}>
+                <Label htmlFor="type" className="text-right block mb-2">
+                  סוג משימה *
+                </Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      type: value,
+                      subtype: value === "מנופים" ? prev.subtype : "",
+                    }));
+                  }}
+                >
                   <SelectTrigger className="text-right">
                     <SelectValue placeholder="בחר סוג משימה" />
                   </SelectTrigger>
@@ -266,8 +414,15 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
             </div>
 
             <div>
-              <Label htmlFor="status" className="text-right block mb-2">סטטוס</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+              <Label htmlFor="status" className="text-right block mb-2">
+                סטטוס
+              </Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, status: value }))
+                }
+              >
                 <SelectTrigger className="text-right">
                   <SelectValue placeholder="בחר סטטוס" />
                 </SelectTrigger>
@@ -289,21 +444,27 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-right font-normal",
-                      !formData.date_expected && "text-muted-foreground"
+                      !formData.date_expected && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="ml-2 h-4 w-4" />
                     {formData.date_expected
-                      ? formatDate(new Date(formData.date_expected + 'T00:00:00'))
+                      ? formatDate(
+                          new Date(formData.date_expected + "T00:00:00"),
+                        )
                       : "בחר תאריך"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={formData.date_expected ? new Date(formData.date_expected + 'T00:00:00') : undefined}
+                    selected={
+                      formData.date_expected
+                        ? new Date(formData.date_expected + "T00:00:00")
+                        : undefined
+                    }
                     onSelect={(date) => {
-                      setFormData(prev => ({
+                      setFormData((prev) => ({
                         ...prev,
                         date_expected: date ? toDateLocalString(date) : "",
                       }));
@@ -320,63 +481,20 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
           {/* Address & Assignment */}
           <div className="space-y-4">
             <div>
-              <Label htmlFor="full_address" className="text-right block mb-2">כתובת מלאה *</Label>
+              <Label htmlFor="full_address" className="text-right block mb-2">
+                כתובת מלאה *
+              </Label>
               <div className="relative">
-                <GooglePlacesAutocomplete
-                  apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
-                  apiOptions={{ language: "iw", region: "il" }}
-                  selectProps={{
-                    value: addressValue,
-                    onChange: (place) => {
-                      setAddressValue(place);
-
-                      if (place && place.value) {
-                        const addressComponents = place.value.address_components || [];
-                        let streetNumber = "", route = "", city = "", postalCode = "", sublocality = "";
-                        
-                        addressComponents.forEach((component: any) => {
-                          const types = component.types;
-                          if (types.includes("street_number")) streetNumber = component.long_name;
-                          else if (types.includes("route")) route = component.long_name;
-                          else if (types.includes("sublocality") || types.includes("sublocality_level_1")) sublocality = component.long_name;
-                          else if (types.includes("locality") || types.includes("administrative_area_level_2") || types.includes("administrative_area_level_1")) {
-                            if (!city) city = component.long_name;
-                          } else if (types.includes("postal_code")) postalCode = component.long_name;
-                        });
-
-                        const finalCity = city || sublocality;
-                        const streetAddress = `${route} ${streetNumber}`.trim();
-                        const fullAddress = finalCity ? `${streetAddress}, ${finalCity}` : streetAddress;
-
-                        setFormData((prev) => ({
-                          ...prev,
-                          address: fullAddress || place.label || "",
-                          city: finalCity || "",
-                          zip_code: postalCode || prev.zip_code,
-                        }));
-                      } else {
-                        setFormData((prev) => ({ ...prev, address: '', city: '', zip_code: '' }));
-                      }
-                    },
-                    placeholder: "מקור 440, תל אביב",
-                    styles: {
-                      input: (provided) => ({
-                        ...provided,
-                        color: 'black',
-                        textAlign: 'right',
-                        paddingLeft: '2.5rem',
-                      }),
-                      option: (provided) => ({
-                        ...provided,
-                        color: 'black',
-                        textAlign: 'right',
-                      }),
-                      singleValue: (provided) => ({
-                        ...provided,
-                        color: 'black',
-                      }),
-                    },
+                <Input
+                  ref={addressInputRef}
+                  id="full_address"
+                  required
+                  value={formData.address}
+                  onChange={(e) => {
+                    setFormData((prev) => ({ ...prev, address: e.target.value }));
                   }}
+                  placeholder="התחל להקליד כתובת..."
+                  className="text-right"
                 />
                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
@@ -386,19 +504,33 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
             </div>
 
             <div>
-              <Label htmlFor="zip_code" className="text-right block mb-2">מיקוד</Label>
+              <Label htmlFor="zip_code" className="text-right block mb-2">
+                מיקוד
+              </Label>
               <Input
                 id="zip_code"
                 value={formData.zip_code}
-                onChange={(e) => setFormData(prev => ({ ...prev, zip_code: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, zip_code: e.target.value }))
+                }
                 placeholder="מיקוד"
                 className="text-right"
               />
             </div>
 
             <div>
-              <Label htmlFor="driver" className="text-right block mb-2">נהג</Label>
-              <Select value={formData.driver__id?.toString() || ""} onValueChange={(value) => setFormData(prev => ({ ...prev, driver_id: value === "none" ? null : parseInt(value) }))}>
+              <Label htmlFor="driver" className="text-right block mb-2">
+                נהג
+              </Label>
+              <Select
+                value={formData.driver_id?.toString() || ""}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    driver_id: value === "none" ? null : parseInt(value),
+                  }))
+                }
+              >
                 <SelectTrigger className="text-right">
                   <SelectValue placeholder="בחר נהג" />
                 </SelectTrigger>
@@ -414,8 +546,18 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
             </div>
 
             <div>
-              <Label htmlFor="car" className="text-right block mb-2">רכב</Label>
-              <Select value={formData.car_id?.toString() || ""} onValueChange={(value) => setFormData(prev => ({ ...prev, car_id: value === "none" ? null : parseInt(value) }))}>
+              <Label htmlFor="car" className="text-right block mb-2">
+                רכב
+              </Label>
+              <Select
+                value={formData.car_id?.toString() || ""}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    car_id: value === "none" ? null : parseInt(value),
+                  }))
+                }
+              >
                 <SelectTrigger className="text-right">
                   <SelectValue placeholder="בחר רכב" />
                 </SelectTrigger>
@@ -435,27 +577,35 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
         {/* Client Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="client_name" className="text-right block mb-2">שם לקוח</Label>
+            <Label htmlFor="client_name" className="text-right block mb-2">
+              שם לקוח
+            </Label>
             <Input
               id="client_name"
               value={formData.metadata.client_name}
-              onChange={(e) => setFormData(prev => ({
-                ...prev,
-                metadata: { ...prev.metadata, client_name: e.target.value }
-              }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  metadata: { ...prev.metadata, client_name: e.target.value },
+                }))
+              }
               placeholder="שם הלקוח"
               className="text-right"
             />
           </div>
           <div>
-            <Label htmlFor="phone_number" className="text-right block mb-2">טלפון</Label>
+            <Label htmlFor="phone_number" className="text-right block mb-2">
+              טלפון
+            </Label>
             <Input
               id="phone_number"
               value={formData.metadata.phone_number}
-              onChange={(e) => setFormData(prev => ({
-                ...prev,
-                metadata: { ...prev.metadata, phone_number: e.target.value }
-              }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  metadata: { ...prev.metadata, phone_number: e.target.value },
+                }))
+              }
               placeholder="מספר טלפון"
               className="text-right"
             />
@@ -463,14 +613,18 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
         </div>
 
         <div>
-          <Label htmlFor="notes" className="text-right block">הערות</Label>
+          <Label htmlFor="notes" className="text-right block">
+            הערות
+          </Label>
           <Textarea
             id="notes"
             value={formData.metadata.notes}
-            onChange={(e) => setFormData(prev => ({
-              ...prev,
-              metadata: { ...prev.metadata, notes: e.target.value }
-            }))}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                metadata: { ...prev.metadata, notes: e.target.value },
+              }))
+            }
             placeholder="הערות נוספות"
             className="text-right"
             rows={3}
@@ -505,7 +659,10 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
           ) : (
             <div className="space-y-3 max-h-64 overflow-y-auto">
               {formData.certificates.map((certificate, index) => (
-                <div key={index} className="border rounded-lg p-3 bg-background">
+                <div
+                  key={index}
+                  className="border rounded-lg p-3 bg-background"
+                >
                   <div className="flex items-center justify-between mb-3">
                     <Button
                       type="button"
@@ -516,9 +673,7 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                    <h4 className="font-medium text-sm">
-                      תעודה #{index + 1}
-                    </h4>
+                    <h4 className="font-medium text-sm">תעודה #{index + 1}</h4>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

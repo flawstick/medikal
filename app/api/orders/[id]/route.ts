@@ -130,11 +130,7 @@ export async function PUT(
       .update({
         type,
         subtype: subtype || null,
-        address: address
-          ? typeof address === 'string'
-            ? { address, city: '', zip_code: '' }
-            : address
-          : undefined,
+        address: address, // Expect address to be an object with address, city, and zip_code
         // Update both string and ID fields
         driver: driver || null,
         car_number: car_number || null,

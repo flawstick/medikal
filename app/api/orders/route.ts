@@ -153,10 +153,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Mission |
       metadata,
     } = body
 
-    // Normalize address to object format if string provided
-    const addressObj = typeof address === 'string' 
-      ? { address, city: '', zip_code: '' } 
-      : address
+    const addressObj = address;
 
     // Determine status based on assignment
     const status = (driver_id || driver) && (car_id || car_number) ? "waiting" : "unassigned";

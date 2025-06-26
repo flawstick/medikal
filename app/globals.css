@@ -149,3 +149,8 @@
   left: auto;
   right: 6px;
 }
+
+/* Google Places Autocomplete z-index fix */
+.pac-container {
+  z-index: 10000 !important;
+}

@@ -6,14 +6,14 @@ import { Loader2 } from 'lucide-react'
 // Loading spinner component
 export function LoadingSpinner({ size = "default", text }: { size?: "sm" | "default" | "lg", text?: string }) {
   const sizeClasses = {
-    sm: "h-4 w-4",
-    default: "h-6 w-6", 
-    lg: "h-8 w-8"
+    sm: "h-8 w-8",
+    default: "h-12 w-12", 
+    lg: "h-16 w-16"
   }
 
   return (
     <div className="flex flex-col items-center justify-center p-4" role="status" aria-live="polite">
-      <Loader2 className={`${sizeClasses[size]} animate-spin text-primary`} aria-hidden="true" />
+      <img src="/logo.png" alt="Loading..." className={`${sizeClasses[size]} animate-spin`} />
       {text && (
         <p className="mt-2 text-sm text-muted-foreground">{text}</p>
       )}
