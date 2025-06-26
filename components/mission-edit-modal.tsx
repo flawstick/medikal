@@ -7,7 +7,7 @@ declare global {
   }
 }
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatDate, toDateLocalString, fromDateLocalString } from "@/lib/date-helpers";
 import type { Mission, Car, Driver, Certificate } from "@/lib/types";
+import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 
 interface MissionEditModalProps {
   mission: Mission | null;
@@ -29,30 +30,13 @@ interface MissionEditModalProps {
   onSuccess: () => void;
 }
 
-interface GoogleMapsPlace {
-  formatted_address: string;
-  geometry: {
-    location: {
-      lat: () => number;
-      lng: () => number;
-    };
-  };
-  address_components: GoogleMapsAddressComponent[];
-}
-
-interface GoogleMapsAddressComponent {
-  long_name: string;
-  short_name: string;
-  types: string[];
-}
-
 export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: MissionEditModalProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [cars, setCars] = useState<Car[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const addressInputRef = useRef<HTMLInputElement>(null);
+  const [addressValue, setAddressValue] = useState<{ label: string; value: any } | null>(null);
 
   const [formData, setFormData] = useState({
     type: "",
@@ -67,6 +51,7 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
     metadata: {
       client_name: "",
       phone_number: "",
+      notes: "",
     },
     certificates: [] as Partial<Certificate>[],
   });
@@ -75,12 +60,16 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
   useEffect(() => {
     if (mission) {
       const parsedAddress = mission.address as any;
+      const initialAddress = parsedAddress?.address || parsedAddress?.street || "";
+      const initialCity = parsedAddress?.city || "";
+      const initialZip = parsedAddress?.zip_code || "";
+      
       setFormData({
         type: mission.type || "",
         subtype: mission.subtype || "",
-        address: parsedAddress?.address || parsedAddress?.street || "",
-        city: parsedAddress?.city || "",
-        zip_code: parsedAddress?.zip_code || "",
+        address: initialAddress,
+        city: initialCity,
+        zip_code: initialZip,
         driver_id: mission.driver_id,
         car_id: mission.car_id,
         date_expected: mission.date_expected ? toDateLocalString(mission.date_expected) : "",
@@ -88,9 +77,22 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
         metadata: {
           client_name: mission.metadata?.client_name || "",
           phone_number: mission.metadata?.phone_number || "",
+          notes: mission.metadata?.notes || "",
         },
         certificates: mission.certificates || [],
       });
+
+      if (initialAddress) {
+        setAddressValue({
+          label: initialAddress,
+          value: {
+            description: initialAddress,
+            place_id: `initial-${mission.id}`,
+          },
+        });
+      } else {
+        setAddressValue(null);
+      }
     }
   }, [mission]);
 
@@ -122,111 +124,11 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
     }
   }, [open]);
 
-
-  const [addressAutocomplete, setAddressAutocomplete] = useState<
-    google.maps.places.Autocomplete | null
-  >(null);
-
-  const initializeAutocomplete = () => {
-    if (!window.google || !window.google.maps) return;
-    if (addressInputRef.current && !addressAutocomplete) {
-      const auto = new window.google.maps.places.Autocomplete(
-        addressInputRef.current,
-        {
-          types: ["geocode"],
-          componentRestrictions: { country: "il" },
-          fields: [
-            "address_components",
-            "formatted_address",
-            "geometry",
-            "name",
-          ],
-        }
-      );
-      auto.addListener("place_changed", () => {
-        const place: GoogleMapsPlace = auto.getPlace();
-        if (place.formatted_address) {
-          const components = place.address_components || [];
-          let streetNumber = "",
-            route = "",
-            city = "",
-            postalCode = "",
-            sublocality = "";
-          components.forEach((c) => {
-            const types = c.types;
-            if (types.includes("street_number")) streetNumber = c.long_name;
-            else if (types.includes("route")) route = c.long_name;
-            else if (
-              types.includes("sublocality") ||
-              types.includes("sublocality_level_1")
-            )
-              sublocality = c.long_name;
-            else if (
-              types.includes("locality") ||
-              types.includes("administrative_area_level_2") ||
-              types.includes("administrative_area_level_1")
-            ) {
-              if (!city) city = c.long_name;
-            } else if (types.includes("postal_code")) postalCode = c.long_name;
-          });
-          const finalCity = city || sublocality;
-          const streetAddress = `${route} ${streetNumber}`.trim();
-          const fullAddress = finalCity
-            ? `${streetAddress}, ${finalCity}`
-            : streetAddress;
-          setFormData((prev) => ({
-            ...prev,
-            address:
-              fullAddress || place.formatted_address || "",
-            city: finalCity || "",
-            zip_code: postalCode || prev.zip_code,
-          }));
-        }
-      });
-      setAddressAutocomplete(auto);
-    }
-  };
-
-  // Load Google Maps script and initialize Autocomplete on mount
-  useEffect(() => {
-    const loadGoogleMapsScript = () => {
-      if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-        console.warn("Google Maps script already loaded");
-        initializeAutocomplete();
-        return;
-      }
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-      if (!apiKey) {
-        console.warn(
-          "Google Maps API key not found. Autocomplete will not be available."
-        );
-        return;
-      }
-      const script = document.createElement("script");
-      script.src =
-        `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&language=he`;
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeAutocomplete;
-      script.onerror = () => {
-        console.error("Failed to load Google Maps API");
-      };
-      document.head.appendChild(script);
-    };
-    loadGoogleMapsScript();
-  }, []);
-
-  // Re-initialize Autocomplete when modal opens
-  useEffect(() => {
-    if (open) initializeAutocomplete();
-  }, [open]);
-
   const handleSubmit = async () => {
     if (!mission) return;
     
     setLoading(true);
     try {
-      // Prepare payload including both driver/car strings and IDs to satisfy update API
       const updateData = {
         type: formData.type,
         subtype: formData.subtype || null,
@@ -235,7 +137,6 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
           city: formData.city,
           zip_code: formData.zip_code,
         },
-        // String fields (used by UI tables) and numeric IDs (for relationships)
         driver: formData.driver_id != null
           ? drivers.find((d) => d.id === formData.driver_id)?.name || null
           : null,
@@ -345,7 +246,6 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
                   setFormData(prev => ({
                     ...prev,
                     type: value,
-                    // Reset subtype if not מנופים
                     subtype: value === "מנופים" ? prev.subtype : "",
                   }));
                 }}>
@@ -409,7 +309,7 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
                       }));
                       setCalendarOpen(false);
                     }}
-                    fromDate={new Date()} // Allow today and future dates
+                    fromDate={new Date()}
                     initialFocus
                   />
                 </PopoverContent>
@@ -422,22 +322,61 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
             <div>
               <Label htmlFor="full_address" className="text-right block mb-2">כתובת מלאה *</Label>
               <div className="relative">
-                <Input
-                  id="full_address"
-                  ref={addressInputRef}
-                  value={formData.address}
-                  onChange={(e) => {
-                    // Allow manual editing but don't parse automatically
-                    // Google Places Autocomplete will handle the parsing
-                    const value = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      address: value,
-                      // Keep city as-is for manual editing, Google Places will update it
-                    }));
+                <GooglePlacesAutocomplete
+                  apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+                  apiOptions={{ language: "iw", region: "il" }}
+                  selectProps={{
+                    value: addressValue,
+                    onChange: (place) => {
+                      setAddressValue(place);
+
+                      if (place && place.value) {
+                        const addressComponents = place.value.address_components || [];
+                        let streetNumber = "", route = "", city = "", postalCode = "", sublocality = "";
+                        
+                        addressComponents.forEach((component: any) => {
+                          const types = component.types;
+                          if (types.includes("street_number")) streetNumber = component.long_name;
+                          else if (types.includes("route")) route = component.long_name;
+                          else if (types.includes("sublocality") || types.includes("sublocality_level_1")) sublocality = component.long_name;
+                          else if (types.includes("locality") || types.includes("administrative_area_level_2") || types.includes("administrative_area_level_1")) {
+                            if (!city) city = component.long_name;
+                          } else if (types.includes("postal_code")) postalCode = component.long_name;
+                        });
+
+                        const finalCity = city || sublocality;
+                        const streetAddress = `${route} ${streetNumber}`.trim();
+                        const fullAddress = finalCity ? `${streetAddress}, ${finalCity}` : streetAddress;
+
+                        setFormData((prev) => ({
+                          ...prev,
+                          address: fullAddress || place.label || "",
+                          city: finalCity || "",
+                          zip_code: postalCode || prev.zip_code,
+                        }));
+                      } else {
+                        setFormData((prev) => ({ ...prev, address: '', city: '', zip_code: '' }));
+                      }
+                    },
+                    placeholder: "מקור 440, תל אביב",
+                    styles: {
+                      input: (provided) => ({
+                        ...provided,
+                        color: 'black',
+                        textAlign: 'right',
+                        paddingLeft: '2.5rem',
+                      }),
+                      option: (provided) => ({
+                        ...provided,
+                        color: 'black',
+                        textAlign: 'right',
+                      }),
+                      singleValue: (provided) => ({
+                        ...provided,
+                        color: 'black',
+                      }),
+                    },
                   }}
-                  placeholder="מקור 440, תל אביב"
-                  className="text-right pl-10"
                 />
                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
@@ -459,7 +398,7 @@ export function MissionEditModal({ mission, open, onOpenChange, onSuccess }: Mis
 
             <div>
               <Label htmlFor="driver" className="text-right block mb-2">נהג</Label>
-              <Select value={formData.driver_id?.toString() || ""} onValueChange={(value) => setFormData(prev => ({ ...prev, driver_id: value === "none" ? null : parseInt(value) }))}>
+              <Select value={formData.driver__id?.toString() || ""} onValueChange={(value) => setFormData(prev => ({ ...prev, driver_id: value === "none" ? null : parseInt(value) }))}>
                 <SelectTrigger className="text-right">
                   <SelectValue placeholder="בחר נהג" />
                 </SelectTrigger>
