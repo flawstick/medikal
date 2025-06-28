@@ -52,6 +52,8 @@ export function NavMain({ items }: { items: NavItem[] }) {
             ? pathname === "/"
             : item.url === "/deliveries" && pathname === "/upload"
               ? true
+              : item.url === "/car-reports" && pathname.startsWith("/car-reports")
+              ? true
               : pathname.startsWith(item.url);
 
         return (

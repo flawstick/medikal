@@ -27,6 +27,7 @@ const mediKalData = {
     { title: "משימות", url: "/deliveries", icon: PackageIcon },
     { title: "נהגים", url: "/drivers", icon: Users },
     { title: "רכבים", url: "/cars", icon: Car },
+    { title: "דוחות רכב", url: "/car-reports", icon: Car },
   ],
 }
 
