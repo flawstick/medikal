@@ -432,7 +432,9 @@ export default function MissionDetailPage({
         </Card>
 
         {/* Failure Details */}
-        {mission.status === "problem" && (
+        {(mission.metadata?.failure_reason ||
+          failureImages.length > 0 ||
+          mission.metadata?.failure_location) && (
           <Card>
             <CardHeader>
               <CardTitle className="text-right flex items-center gap-2">
@@ -522,20 +524,54 @@ export default function MissionDetailPage({
                 </div>
               )}
               {failureImages.length > 0 && (
-                <div>
-                  <span className="text-muted-foreground">תמונות כשלון:</span>
-                  <div className="flex flex-wrap gap-2 mt-1">
+                <div className="space-y-2 text-right mt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600" />
+                      <span className="text-lg font-medium">תמונות כשלון ({failureImages.length})</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {failureImages.map((url, idx) => (
-                      <a
+                      <div
                         key={idx}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
+                        className="w-24 h-24 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer"
                       >
-                        קובץ {idx + 1}
-                      </a>
+                        <img
+                          src={url}
+                          alt={`תמונת כשלון ${idx + 1}`}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </div>
                     ))}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <div className="w-24 h-24 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                          <ArrowRight className="h-6 w-6 text-muted-foreground rotate-180" />
+                          <span className="text-xs text-muted-foreground mt-1">הצג הכל</span>
+                        </div>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-3xl max-h-[80vh]">
+                        <DialogHeader>
+                          <DialogTitle>תמונות כשלון</DialogTitle>
+                        </DialogHeader>
+                        <Carousel style={{ direction: 'ltr' }}>
+                          <CarouselPrevious />
+                          <CarouselContent className="h-[400px]">
+                            {failureImages.map((url, idx) => (
+                              <CarouselItem key={idx}>
+                                <img
+                                  src={url}
+                                  alt={`תמונת כשלון ${idx + 1}`}
+                                  className="h-full w-full object-cover rounded-lg"
+                                />
+                              </CarouselItem>
+                            ))}
+                          </CarouselContent>
+                          <CarouselNext />
+                        </Carousel>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               )}
@@ -641,60 +677,6 @@ export default function MissionDetailPage({
                           <img
                             src={url}
                             alt={`תעודת תמונה ${idx + 1}`}
-                            className="h-full w-full object-cover rounded-lg"
-                          />
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
-                    <CarouselNext />
-                  </Carousel>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        )}
-
-        {/* Failure Images */}
-        {failureImages.length > 0 && (
-          <div className="space-y-2 text-right mt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                <span className="text-lg font-medium">תמונות כשלון ({failureImages.length})</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {failureImages.map((url, idx) => (
-                <div
-                  key={idx}
-                  className="w-24 h-24 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer"
-                >
-                  <img
-                    src={url}
-                    alt={`תמונת כשלון ${idx + 1}`}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                </div>
-              ))}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <div className="w-24 h-24 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <ArrowRight className="h-6 w-6 text-muted-foreground rotate-180" />
-                    <span className="text-xs text-muted-foreground mt-1">הצג הכל</span>
-                  </div>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[80vh]">
-                  <DialogHeader>
-                    <DialogTitle>תמונות כשלון</DialogTitle>
-                  </DialogHeader>
-                  <Carousel style={{ direction: 'ltr' }}>
-                    <CarouselPrevious />
-                    <CarouselContent className="h-[400px]">
-                      {failureImages.map((url, idx) => (
-                        <CarouselItem key={idx}>
-                          <img
-                            src={url}
-                            alt={`תמונת כשלון ${idx + 1}`}
                             className="h-full w-full object-cover rounded-lg"
                           />
                         </CarouselItem>
