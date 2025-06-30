@@ -343,7 +343,11 @@ export function MissionEditModal({
         className="max-w-4xl max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => {
           const target = e.target as HTMLElement;
-          if (target.closest(".pac-container")) {
+          if (
+            target.closest(".pac-container") ||
+            target.closest(".calendar-popover-content") ||
+            target.closest("[data-radix-popper-content-wrapper]")
+          ) {
             e.preventDefault();
           }
         }}
@@ -455,7 +459,7 @@ export function MissionEditModal({
                       : "בחר תאריך"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 calendar-popover-content" align="start">
                   <Calendar
                     mode="single"
                     selected={

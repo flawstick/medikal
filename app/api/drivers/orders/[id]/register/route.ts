@@ -86,10 +86,12 @@ export async function POST(
       car_id,
       certificate_images,
       package_images,
+      metadata,
     }: {
       car_id: number;
       certificate_images?: string[];
       package_images?: string[];
+      metadata?: { location?: any };
     } = body;
     // Validate car_id
     if (typeof car_id !== "number" || isNaN(car_id)) {
@@ -104,6 +106,10 @@ export async function POST(
       certificate_images: certificate_images || [],
       package_images: package_images || [],
     };
+
+    if (metadata?.location) {
+      newMetadata.register_location = metadata.location;
+    }
 
     // Update mission: use driverId from JWT
     const { data: updated, error: updateErr } = await db

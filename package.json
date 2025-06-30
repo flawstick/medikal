@@ -58,6 +58,7 @@
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.44.2",
     "embla-carousel-react": "8.5.1",
+    "exifreader": "^4.31.1",
     "framer-motion": "latest",
     "input-otp": "1.4.1",
     "jsonwebtoken": "^9.0.2",

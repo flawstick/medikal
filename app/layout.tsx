@@ -36,7 +36,7 @@ export default function RootLayout({
             <nav id="main-navigation" role="navigation" aria-label="ניווט ראשי">
               <AppSidebar />
             </nav>
-            <SidebarInset className="flex flex-col min-h-screen">
+            <SidebarInset className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
               <main
                 id="main-content"
                 role="main"

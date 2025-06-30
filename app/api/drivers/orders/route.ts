@@ -167,6 +167,7 @@ export async function GET(request: NextRequest) {
     } catch (e) {
       console.warn("Route reorder failed:", e);
     }
+    console.log("Ordered missions:", missionsOrdered);
     return NextResponse.json({
       date: dateParam,
       driver: {
