@@ -556,6 +556,7 @@ export function UploadDeliveryForm() {
       certificates: [
         ...prev.certificates,
         {
+          type: "delivery",
           certificate_number: "",
           packages_count: 1,
           notes: "",
@@ -1181,7 +1182,7 @@ export function UploadDeliveryForm() {
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {formData.date_expected ? (
-                            new Date(formData.date_expected).toLocaleString()
+                            new Date(formData.date_expected).toLocaleDateString()
                           ) : (
                             <span>בחר תאריך</span>
                           )}
@@ -1290,7 +1291,27 @@ export function UploadDeliveryForm() {
                           </h4>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-right block text-sm">
+                              סוג תעודה
+                            </Label>
+                            <Select
+                              value={certificate.type || 'delivery'}
+                              onValueChange={(value) =>
+                                updateCertificate(index, "type", value)
+                              }
+                            >
+                              <SelectTrigger className="text-right">
+                                <SelectValue placeholder="בחר סוג" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="delivery">ת. משלוח</SelectItem>
+                                <SelectItem value="return">ת. החזרה</SelectItem>
+                                <SelectItem value="other">אחר</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                           <div className="space-y-1">
                             <Label className="text-right block text-sm">
                               מספר תעודה

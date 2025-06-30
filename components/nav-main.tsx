@@ -64,8 +64,10 @@ export function NavMain({ items }: { items: NavItem[] }) {
               tooltip={item.title}
               className={`
                 justify-start text-right transition-colors relative z-10
-                hover:bg-muted hover:text-foreground
-                ${isActive ? "bg-primary text-background  dark:bg-background dark:text-foreground" : ""}
+                transition-opacity
+                ${isActive
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "hover:bg-muted hover:text-foreground"}
               `}
             >
               <a href={item.url}>

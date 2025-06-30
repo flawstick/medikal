@@ -314,7 +314,7 @@ export function MissionEditModal({
       ...prev,
       certificates: [
         ...prev.certificates,
-        { certificate_number: "", packages_count: 1, notes: "" },
+        { type: "delivery", certificate_number: "", packages_count: 1, notes: "" },
       ],
     }));
   };
@@ -676,10 +676,30 @@ export function MissionEditModal({
                     <h4 className="font-medium text-sm">תעודה #{index + 1}</h4>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <Label className="text-right block text-sm">
-                        מספר תעודה
+                        סוג תעודה
+                      </Label>
+                      <Select
+                        value={certificate.type || 'delivery'}
+                        onValueChange={(value) =>
+                          updateCertificate(index, "type", value)
+                        }
+                      >
+                        <SelectTrigger className="text-right">
+                          <SelectValue placeholder="בחר סוג" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="delivery">ת. משלוח</SelectItem>
+                          <SelectItem value="return">ת. החזרה</SelectItem>
+                          <SelectItem value="other">אחר</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-right block text-sm">
+                        מספר ת��ודה
                       </Label>
                       <Input
                         value={certificate.certificate_number || ""}

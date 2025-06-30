@@ -10,6 +10,7 @@ export interface Certificate {
   certificate_number: string
   packages_count: number
   notes?: string
+  type?: string
 }
 
 export interface MissionMetadata {
