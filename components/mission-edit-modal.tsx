@@ -89,7 +89,7 @@ export function MissionEditModal({
 
   // Initialize form data when mission changes
   useEffect(() => {
-    if (mission) {
+    if (mission && open) {
       const parsedAddress = mission.address as any;
       const initialAddress =
         parsedAddress?.address || parsedAddress?.street || "";
@@ -116,7 +116,7 @@ export function MissionEditModal({
         certificates: mission.certificates || [],
       });
     }
-  }, [mission]);
+  }, [mission, open]);
 
   // Load Google Maps script and initialize autocomplete
   useEffect(() => {
