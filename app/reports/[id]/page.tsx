@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import Image from "next/image";
+import { ImageGrid } from "@/components/image-grid";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 
@@ -48,8 +48,6 @@ type CrashData = {
   thirdPartyDriverPhone: string;
 };
 
-const R2_BASE_URL = "https://pub-935a9967c0664658862019699749d4f6.r2.dev";
-
 async function getReport(id: string): Promise<Report | null> {
   const res = await fetch(`/api/reports/${id}`, {
     cache: "no-store",
@@ -69,40 +67,6 @@ function InfoField({ label, value }: { label: string; value: any }) {
     <div className="flex flex-col space-y-1">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <p className="text-base">{value || "לא צוין"}</p>
-    </div>
-  );
-}
-
-function ImageGrid({
-  title,
-  imageKeys,
-}: {
-  title: string;
-  imageKeys: string[] | undefined;
-}) {
-  if (!imageKeys || imageKeys.length === 0) return null;
-
-  return (
-    <div className="space-y-2">
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {imageKeys.map((key) => (
-          <a
-            key={key}
-            href={`${R2_BASE_URL}/${key}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              src={`${R2_BASE_URL}/${key}`}
-              alt={title}
-              width={200}
-              height={200}
-              className="rounded-lg object-cover aspect-square"
-            />
-          </a>
-        ))}
-      </div>
     </div>
   );
 }

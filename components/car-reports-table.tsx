@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/table';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { vehicleInspectionLabels } from '@/lib/constants';
 
 interface CarReportsTableProps {
@@ -16,6 +16,8 @@ interface CarReportsTableProps {
   sortOrder: string;
   page: number;
   limit: number;
+  /** Callback when page changes */
+  onPageChange?: (newPage: number) => void;
 }
 
 export function CarReportsTable({
@@ -24,11 +26,16 @@ export function CarReportsTable({
   sortOrder,
   page,
   limit,
+  onPageChange = () => {},
 }: CarReportsTableProps) {
   const [reports, setReports] = useState<VehicleInspection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalReports, setTotalReports] = useState(0);
+  // Calculate pagination
+  const totalPages = Math.ceil(totalReports / limit);
+  const handlePreviousPage = () => onPageChange(Math.max(page - 1, 1));
+  const handleNextPage = () => onPageChange(Math.min(page + 1, totalPages));
 
   useEffect(() => {
     async function fetchReports() {
