@@ -691,6 +691,8 @@ export default function MissionDetailPage({
           images={lightboxImages}
           startIndex={lightboxStartIndex}
           onClose={() => setLightboxImages([])}
+          exifData={exifData}
+          onExifRequest={getExifData}
         />
       )}
     </div>
