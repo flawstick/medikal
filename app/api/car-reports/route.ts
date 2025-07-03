@@ -12,19 +12,24 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 100);
     const offset = (page - 1) * limit;
 
-    let query = supabase.from("vehicle_inspections").select("*", { count: "exact" });
+    let query = supabase
+      .from("vehicle_inspections")
+      .select("*", { count: "exact" });
 
     if (search && search.trim()) {
       const searchTerm = search.trim();
       query = query.or(
-        `vehicle_number.ilike.%${searchTerm}%,driver_name.ilike.%${searchTerm}%`
+        `vehicle_number.ilike.%${searchTerm}%,driver_name.ilike.%${searchTerm}%`,
       );
     }
 
     const ascending = sortOrder === "asc";
     query = query.order(sortBy, { ascending });
 
-    const { data, error, count } = await query.range(offset, offset + limit - 1);
+    const { data, error, count } = await query.range(
+      offset,
+      offset + limit - 1,
+    );
 
     if (error) {
       console.error("Error fetching vehicle inspections:", error);
