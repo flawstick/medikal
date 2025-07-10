@@ -143,31 +143,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Reorder today's active missions via TSP utility
-    let missionsOrdered = driverMissions || [];
-    try {
-      const activeStatuses = new Set(["waiting", "in_progress"]);
-      const active = missionsOrdered.filter((m) =>
-        activeStatuses.has(m.status),
-      );
-      const others = missionsOrdered.filter(
-        (m) => !activeStatuses.has(m.status),
-      );
-      if (active.length > 1) {
-        const addresses = active.map(
-          (m) =>
-            `${m.address.address}, ${m.address.city} ${m.address.zip_code}`,
-        );
-        const { orderedIndices } = await import("@/lib/routeUtils").then((m) =>
-          m.computeNearestNeighborRoute(addresses),
-        );
-        const activeReordered = orderedIndices.map((i) => active[i]);
-        missionsOrdered = [...activeReordered, ...others];
-      }
-    } catch (e) {
-      console.warn("Route reorder failed:", e);
-    }
-    console.log("Ordered missions:", missionsOrdered);
+    // Create a formatted address for each mission.
+    const missionsWithAddress = (driverMissions || []).map((mission) => ({
+      ...mission,
+      formatted_address: mission.address
+        ? `${mission.address.address}, ${mission.address.city} ${mission.address.zip_code}`
+        : null,
+    }));
+
     return NextResponse.json({
       date: dateParam,
       driver: {
@@ -175,8 +158,8 @@ export async function GET(request: NextRequest) {
         name: payload.name,
         username: payload.username,
       },
-      missions: missionsOrdered,
-      count: missionsOrdered.length,
+      missions: missionsWithAddress,
+      count: missionsWithAddress.length,
     });
   } catch (error) {
     console.error("Driver orders fetch error:", error);
