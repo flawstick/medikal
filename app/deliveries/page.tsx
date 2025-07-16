@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -33,15 +34,60 @@ import Link from "next/link";
 import type { Car, Driver } from "@/lib/types";
 
 export default function DeliveriesPage() {
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [carFilter, setCarFilter] = useState("all");
-  const [driverFilter, setDriverFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("created_at");
-  const [sortOrder, setSortOrder] = useState("desc");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const statusFilter = searchParams.get("status") ?? "all";
+  const carFilter = searchParams.get("car") ?? "all";
+  const driverFilter = searchParams.get("driver") ?? "all";
+  const sortBy = searchParams.get("sortBy") ?? "created_at";
+  const sortOrder = searchParams.get("sortOrder") ?? "desc";
+  const searchQuery = searchParams.get("search") ?? "";
+  const fromParam = searchParams.get("from");
+  const toParam = searchParams.get("to");
+  const dateRange: DateRange | undefined = fromParam || toParam ? {
+    from: fromParam ? new Date(fromParam) : undefined,
+    to: toParam ? new Date(toParam) : undefined,
+  } : undefined;
   const [cars, setCars] = useState<Car[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+
+  // Helper to update individual search params in URL
+  const updateParam = (key: string, value?: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!value || value === "all") {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    const queryString = params.toString();
+    router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
+  };
+
+  // Helper to update date range in URL
+  const updateDateRange = (range: DateRange | undefined) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (range?.from) {
+      params.set("from", range.from.toISOString());
+    } else {
+      params.delete("from");
+    }
+    if (range?.to) {
+      params.set("to", range.to.toISOString());
+    } else {
+      params.delete("to");
+    }
+    const queryString = params.toString();
+    router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
+  };
+  // Clear all filters (status, car, driver, search, date range)
+  const clearFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    ["status", "car", "driver", "search", "from", "to"].forEach((key) => {
+      params.delete(key);
+    });
+    const queryString = params.toString();
+    router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
+  };
 
   // Fetch cars and drivers for filter options
   useEffect(() => {
@@ -109,7 +155,7 @@ export default function DeliveriesPage() {
                     mode="range"
                     defaultMonth={dateRange?.from}
                     selected={dateRange}
-                    onSelect={setDateRange}
+                    onSelect={updateDateRange}
                     numberOfMonths={2}
                     className="rounded-lg border shadow-sm"
                   />
@@ -168,14 +214,18 @@ export default function DeliveriesPage() {
                 placeholder="חפש משלוחים..."
                 className="pr-10 text-right"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => updateParam("search", e.target.value)}
               />
             </div>
+            {/* Clear filters button */}
+            <Button variant="outline" className="order-2 md:order-3" onClick={clearFilters}>
+              נקה מסננים
+            </Button>
 
             {/* Filter and Sort Controls */}
             <div className="flex gap-2 order-1 md:order-2 flex-wrap">
               {/* Status Filter */}
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => updateParam("status", value)}>
                 <SelectTrigger className="w-40">
                   <Filter className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="סטטוס" />
@@ -221,7 +271,7 @@ export default function DeliveriesPage() {
               </Select>
 
               {/* Car Filter */}
-              <Select value={carFilter} onValueChange={setCarFilter}>
+              <Select value={carFilter} onValueChange={(value) => updateParam("car", value)}>
                 <SelectTrigger className="w-40">
                   <CarIcon className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="רכב" />
@@ -253,7 +303,7 @@ export default function DeliveriesPage() {
               </Select>
 
               {/* Driver Filter */}
-              <Select value={driverFilter} onValueChange={setDriverFilter}>
+              <Select value={driverFilter} onValueChange={(value) => updateParam("driver", value)}>
                 <SelectTrigger className="w-40">
                   <User className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="נהג" />
@@ -285,7 +335,7 @@ export default function DeliveriesPage() {
               </Select>
 
               {/* Sort By */}
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={sortBy} onValueChange={(value) => updateParam("sortBy", value)}>
                 <SelectTrigger className="w-40">
                   <ArrowUpDown className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="מיון לפי" />
@@ -319,7 +369,7 @@ export default function DeliveriesPage() {
               </Select>
 
               {/* Sort Order */}
-              <Select value={sortOrder} onValueChange={setSortOrder}>
+              <Select value={sortOrder} onValueChange={(value) => updateParam("sortOrder", value)}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>

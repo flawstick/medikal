@@ -7,18 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, Clock, Package, User } from "lucide-react";
-import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { MissionActions } from "@/components/mission-actions";
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { ImageLightbox } from "@/components/ImageLightbox";
-import ExifReader from "exifreader";
 import { Clipboard, Plus, MapPin, Calendar } from "lucide-react";
 
 interface Mission {
@@ -278,11 +269,9 @@ export default function MissionDetailPage({
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Button variant="outline" asChild>
-            <Link href="/deliveries">
-              <ArrowRight className="ml-2 h-4 w-4" />
-              חזרה למשימות
-            </Link>
+          <Button variant="outline" onClick={() => router.back()}>
+            <ArrowRight className="ml-2 h-4 w-4" />
+            חזרה למשימות
           </Button>
         </div>
         <Card>
@@ -348,11 +337,9 @@ export default function MissionDetailPage({
             {mission.subtype && ` - ${mission.subtype}`}
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <Link href="/deliveries">
-            <ArrowRight className="ml-2 h-4 w-4" />
-            חזרה למשימות
-          </Link>
+        <Button variant="outline" onClick={() => router.back()}>
+          <ArrowRight className="ml-2 h-4 w-4" />
+          חזרה למשימות
         </Button>
       </div>
 
