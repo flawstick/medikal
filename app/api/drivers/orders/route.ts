@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
-    // Parse and validate date
+    // Parse and validate date (YYYY-MM-DD)
     const requestedDate = new Date(dateParam);
     if (isNaN(requestedDate.getTime())) {
       return NextResponse.json(
@@ -108,13 +108,11 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
-
-    // Set start and end of day for the requested date
-    const startOfDay = new Date(requestedDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(requestedDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    // By default, treat date in Asia/Jerusalem timezone (UTC+02:00)
+    // Build start and end instants for the given date in Jerusalem time
+    const isoDate = dateParam; // already YYYY-MM-DD
+    const startOfDay = new Date(`${isoDate}T00:00:00+02:00`);
+    const endOfDay = new Date(`${isoDate}T23:59:59.999+02:00`);
 
     // Build query for missions based on car filter
     let query = db

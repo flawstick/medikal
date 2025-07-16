@@ -10,7 +10,7 @@ import { ArrowRight, Clock, Package, User } from "lucide-react";
 import { AlertCircle } from "lucide-react";
 import { MissionActions } from "@/components/mission-actions";
 import { ImageLightbox } from "@/components/ImageLightbox";
-import { Clipboard, Plus, MapPin, Calendar } from "lucide-react";
+import { Clipboard } from "lucide-react";
 
 interface Mission {
   id: number;
@@ -117,7 +117,9 @@ export default function MissionDetailPage({
     setExifData((prev) => ({ ...prev, [imageUrl]: { loading: true } }));
 
     try {
-      const response = await fetch(`/api/exif?url=${encodeURIComponent(imageUrl)}`);
+      const response = await fetch(
+        `/api/exif?url=${encodeURIComponent(imageUrl)}`,
+      );
       if (response.ok) {
         const data = await response.json();
         setExifData((prev) => ({ ...prev, [imageUrl]: data }));
@@ -607,7 +609,12 @@ export default function MissionDetailPage({
                 <div
                   key={idx}
                   className="relative w-24 h-24 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => openLightbox(certificateImages.map(i => i.url), idx)}
+                  onClick={() =>
+                    openLightbox(
+                      certificateImages.map((i) => i.url),
+                      idx,
+                    )
+                  }
                 >
                   <img
                     src={img.url}
@@ -685,4 +692,3 @@ export default function MissionDetailPage({
     </div>
   );
 }
-
