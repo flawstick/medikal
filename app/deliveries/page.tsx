@@ -116,7 +116,7 @@ export default function DeliveriesPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-screen flex flex-col">
       <div className="flex flex-col items-end gap-2 md:flex-row md:justify-between md:items-center">
         <div className="text-right">
           <h1 className="text-3xl font-bold tracking-tight">משלוחים</h1>
@@ -124,15 +124,19 @@ export default function DeliveriesPage() {
             ניהול וצפייה בכל המשלוחים
           </p>
         </div>
-        <Button size="lg" asChild>
-          <Link href="/upload">
-            <Plus className="ml-2 h-5 w-5" />
+        <Button
+          size="lg"
+          asChild
+          className="transform transition-transform duration-200 hover:scale-110"
+        >
+          <Link href="/upload" className="inline-flex items-center gap-2 group">
+            <Plus className="h-5 w-5 group-hover:animate-spin" />
             משלוח חדש
           </Link>
         </Button>
       </div>
 
-      <Card className="shadow-sm">
+      <Card className="shadow-sm flex flex-col flex-1">
         <CardHeader className="space-y-4">
           <div className="flex items-center justify-between">
             <CardTitle className="flex flex-row items-center justify-between text-right text-xl w-full">
@@ -391,7 +395,7 @@ export default function DeliveriesPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 overflow-auto">
           <DeliveriesTable
             statusFilter={statusFilter}
             carFilter={carFilter}

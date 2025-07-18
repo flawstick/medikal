@@ -18,7 +18,13 @@ import { getStatusColor, getStatusText, getAllStatuses } from "@/lib/status-help
 import { formatDate, formatTime } from "@/lib/date-helpers"
 import { MissionActions } from "@/components/mission-actions"
 
-const ITEMS_PER_PAGE = 15
+// Number of items to show per page (reduced to fit exactly PAGE_GROUP_SIZE pages)
+const ITEMS_PER_PAGE = 10
+// Number of pages to fetch in one batch before fetching next batch
+// Number of pages fetched in one batch before hitting server again
+const PAGE_GROUP_SIZE = 10
+// Total items fetched per group (ITEMS_PER_PAGE * PAGE_GROUP_SIZE)
+const GROUP_LIMIT = ITEMS_PER_PAGE * PAGE_GROUP_SIZE
 
 
 interface DeliveriesTableProps {
@@ -43,31 +49,44 @@ export function DeliveriesTable({
   dateRange,
 }: DeliveriesTableProps) {
   const router = useRouter()
-  const [missions, setMissions] = useState<Mission[]>([])
+  // Cached group of pages data and total count
+  const [groupData, setGroupData] = useState<Mission[]>([])
   const [loading, setLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  // Which group of pages (0 = pages 1-10, 1 = 11-20, etc.)
+  const [groupIndex, setGroupIndex] = useState(0)
+  // Total items across all pages
+  const [totalItems, setTotalItems] = useState(0)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [missionToUpdate, setMissionToUpdate] = useState<Mission | null>(null)
   const [newStatus, setNewStatus] = useState<string>("")
+  // Reset to first page group/page on filters/search/sort/date change
+  useEffect(() => {
+    setGroupIndex(0)
+    setCurrentPage(1)
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery, dateRange])
 
+  // Fetch the current group of pages when filters, search, sort, or groupIndex change
   useEffect(() => {
-    fetchMissions()
-  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange])
-  // Poll for updates every 15 seconds
+    fetchGroupData()
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, groupIndex])
+  // Poll for updates every 15 seconds for the current group
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchMissions()
-    }, 15000)
+    const interval = setInterval(fetchGroupData, 15000)
     return () => clearInterval(interval)
-  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange])
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, groupIndex])
 
   useEffect(() => {
     setCurrentPage(1) // Reset to first page when filters change
   }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery, dateRange])
 
-  const fetchMissions = async () => {
+  // Fetch a batch of pages (group) from server
+  const fetchGroupData = async () => {
+    // Indicate loading state for new group fetch
+    setLoading(true)
     try {
+      // Build query parameters including offset-based group fetch
       const params = new URLSearchParams({
         status: statusFilter,
         type: typeFilter,
@@ -75,7 +94,17 @@ export function DeliveriesTable({
         driver: driverFilter,
         sortBy,
         sortOrder,
+        limit: GROUP_LIMIT.toString(),
       })
+      // Offset depends on current group of pages
+      const offset = groupIndex * GROUP_LIMIT
+      if (offset > 0) {
+        params.set("offset", offset.toString())
+      }
+      // Include search query if any
+      if (searchQuery) {
+        params.append("search", searchQuery)
+      }
       // Date range filtering
       if (dateRange?.from) {
         params.append("from", dateRange.from.toISOString())
@@ -83,13 +112,17 @@ export function DeliveriesTable({
       if (dateRange?.to) {
         params.append("to", dateRange.to.toISOString())
       }
-      
       const response = await fetch(`/api/orders?${params}`)
       if (response.ok) {
         const result = await response.json()
-        // Handle both old array format and new paginated format
-        const data = Array.isArray(result) ? result : result.data || []
-        setMissions(data)
+        if (Array.isArray(result)) {
+          // Fallback for simple array responses
+          setGroupData(result)
+          setTotalItems(result.length)
+        } else {
+          setGroupData(result.data || [])
+          setTotalItems(result.pagination?.total || 0)
+        }
       }
     } catch (error) {
       console.error("Error fetching missions:", error)
@@ -102,31 +135,33 @@ export function DeliveriesTable({
     return <TableLoadingSkeleton rows={ITEMS_PER_PAGE} columns={9} />
   }
 
-  // Filter missions based on search query
-  const filteredMissions = missions.filter(mission => {
-    if (!searchQuery) return true
-    
-    const searchLower = searchQuery.toLowerCase()
-    const addressString = `${mission.address.address} ${mission.address.city} ${mission.address.zip_code}`
-    return (
-      mission.id.toString().includes(searchLower) ||
-      mission.type.toLowerCase().includes(searchLower) ||
-      mission.subtype?.toLowerCase().includes(searchLower) ||
-      addressString.toLowerCase().includes(searchLower) ||
-      mission.driver?.toLowerCase().includes(searchLower) ||
-      mission.car_number?.toLowerCase().includes(searchLower)
-    )
-  })
-
-  const totalPages = Math.ceil(filteredMissions.length / ITEMS_PER_PAGE)
-  const currentMissions = filteredMissions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  // Compute total pages and slice out current page's items from the loaded group
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1 - groupIndex * PAGE_GROUP_SIZE) * ITEMS_PER_PAGE
+  const currentMissions = groupData.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
   const handlePreviousPage = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1))
+    if (currentPage > 1) {
+      const newPage = currentPage - 1
+      // If moving before current group start, shift to previous group
+      const groupStartPage = groupIndex * PAGE_GROUP_SIZE + 1
+      if (newPage < groupStartPage) {
+        setGroupIndex(groupIndex - 1)
+      }
+      setCurrentPage(newPage)
+    }
   }
 
   const handleNextPage = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+    if (currentPage < totalPages) {
+      const newPage = currentPage + 1
+      // If moving past current group end, shift to next group
+      const groupEndPage = (groupIndex + 1) * PAGE_GROUP_SIZE
+      if (newPage > groupEndPage) {
+        setGroupIndex(groupIndex + 1)
+      }
+      setCurrentPage(newPage)
+    }
   }
 
 
@@ -159,9 +194,9 @@ export function DeliveriesTable({
       if (response.ok) {
         const updatedMission = await response.json()
         // Update the mission in state
-        setMissions(missions => missions.map(mission => 
-          mission.id === missionToUpdate.id ? updatedMission : mission
-        ))
+        setGroupData(data => 
+          data.map(m => m.id === missionToUpdate.id ? updatedMission : m)
+        )
         setStatusDialogOpen(false)
         setMissionToUpdate(null)
         setNewStatus("")
@@ -235,8 +270,8 @@ export function DeliveriesTable({
       <div>
         <div className="rounded-md border overflow-x-auto">
         <Table role="table" aria-label="טבלת משלוחים">
-          <caption className="sr-only">
-            רשימת משלוחים עם פרטי סטטוס, כתובת, נהג ופעולות זמינות. מציגה {currentMissions.length} מתוך {filteredMissions.length} משימות
+        <caption className="sr-only">
+            רשימת משלוחים. עמוד {currentPage} מתוך {totalPages}
           </caption>
           <TableHeader>
             <TableRow role="row">
@@ -336,10 +371,10 @@ export function DeliveriesTable({
                       >
                         <Edit className="mr-2 h-4 w-4" aria-hidden="true" /> עדכן סטטוס
                       </DropdownMenuItem>
-                      <MissionActions 
+                      <MissionActions
                         mission={mission}
-                        onUpdate={fetchMissions}
-                        onDelete={() => setMissions(missions => missions.filter(m => m.id !== mission.id))}
+                        onUpdate={fetchGroupData}
+                        onDelete={() => setGroupData(data => data.filter(m => m.id !== mission.id))}
                         asDropdownItems={true}
                       />
                     </DropdownMenuContent>
@@ -357,8 +392,8 @@ export function DeliveriesTable({
                 </TableRow>
               ))}
             
-            {/* Show no results message if filtered orders is empty */}
-            {filteredMissions.length === 0 && (
+            {/* Show no results message if no items at all */}
+            {totalItems === 0 && (
               <TableRow>
                 <TableCell className="h-32 text-center" colSpan={9}>
                   <div className="text-muted-foreground">

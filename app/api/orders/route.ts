@@ -17,10 +17,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
     const search = searchParams.get("search");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100); // Max 100 items per page
-    const offset = (page - 1) * limit;
+    // Support offset-based batching when provided
+    const offsetParam = searchParams.get("offset");
+    const offset = offsetParam !== null
+      ? Math.max(parseInt(offsetParam) || 0, 0)
+      : (page - 1) * limit;
 
-    // Start building the query
-    let query = db.from("missions").select("*");
+    // Start building the query (include exact count for pagination)
+    let query = db.from("missions").select("*", { count: 'exact' });
 
     // Apply status filter if provided
     if (status && status !== "all") {
