@@ -1,0 +1,23 @@
+{
+  "$schema": "https://charm.land/crush.json",
+  "lsp": {
+    "typescript": {
+      "command": "node_modules/.bin/typescript-language-server",
+      "args": ["--stdio"]
+    }
+  },
+  "mcp": {
+    "firecrawl": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--yes", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "$(echo $FIRECRAWL_API_KEY)"
+      }
+    }
+  },
+  "options": {
+    "debug": true,
+    "debug_lsp": true
+  }
+}

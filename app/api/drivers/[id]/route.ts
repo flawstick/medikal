@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 
+export const runtime = "edge";
+
 // DELETE /api/drivers/[id] - Delete a specific driver
 export async function DELETE(
   request: NextRequest,

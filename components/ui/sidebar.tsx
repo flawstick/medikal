@@ -70,32 +70,37 @@ const SidebarProvider = React.forwardRef<
     const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = React.useState(false)
 
-    // Helper function to read sidebar state from cookie
-    const getSidebarStateFromCookie = React.useCallback(() => {
-      if (typeof document === "undefined") return defaultOpen
-      
-      const cookies = document.cookie.split(";")
-      const sidebarCookie = cookies.find(cookie => 
-        cookie.trim().startsWith(`${SIDEBAR_COOKIE_NAME}=`)
-      )
-      
-      if (sidebarCookie) {
-        const value = sidebarCookie.split("=")[1]
-        return value === "true"
-      }
-      
-      return defaultOpen
-    }, [defaultOpen])
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
-    // Initialize to defaultOpen to match server rendering; restore saved cookie state on client after mount.
+    // Always start with defaultOpen for SSR safety
     const [_open, _setOpen] = React.useState<boolean>(defaultOpen)
-    // After hydration, read cookie to restore persisted sidebar state
+    const hasSyncedRef = React.useRef(false)
+    
+    // After hydration, sync with saved state once and only once
     React.useEffect(() => {
-      const saved = getSidebarStateFromCookie()
-      _setOpen(saved)
-    }, [getSidebarStateFromCookie])
+      if (!hasSyncedRef.current) {
+        hasSyncedRef.current = true
+        
+        // Read saved state after mount
+        try {
+          const sessionValue = sessionStorage.getItem(SIDEBAR_COOKIE_NAME)
+          if (sessionValue !== null) {
+            _setOpen(sessionValue === "true")
+            return
+          }
+          
+          const cookies = document.cookie.split(";")
+          const sidebarCookie = cookies.find(cookie => 
+            cookie.trim().startsWith(`${SIDEBAR_COOKIE_NAME}=`)
+          )
+          if (sidebarCookie) {
+            const value = sidebarCookie.split("=")[1]
+            _setOpen(value === "true")
+          }
+        } catch {}
+      }
+    }, []) // Empty dependency array - only run once
     const open = openProp ?? _open
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
@@ -106,7 +111,10 @@ const SidebarProvider = React.forwardRef<
           _setOpen(openState)
         }
 
-        // This sets the cookie to keep the sidebar state.
+        // This sets both sessionStorage and cookie to keep the sidebar state.
+        try {
+          sessionStorage.setItem(SIDEBAR_COOKIE_NAME, openState.toString())
+        } catch {}
         document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
       },
       [setOpenProp, open]

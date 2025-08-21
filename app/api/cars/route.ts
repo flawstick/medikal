@@ -3,6 +3,8 @@ import { db } from "@/server/db"
 import type { CreateCarRequest, Car, APIResponse } from "@/lib/types"
 import { validateCar } from "@/lib/validation"
 
+export const runtime = "edge";
+
 export async function GET(request: NextRequest): Promise<NextResponse<Car[] | APIResponse>> {
   try {
     const { searchParams } = new URL(request.url);

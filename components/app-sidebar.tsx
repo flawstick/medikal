@@ -1,13 +1,17 @@
 "use client"
 
 import type * as React from "react"
-import { Home, PackageIcon, Moon, Sun, Monitor, Users, Car } from "lucide-react"
+import { Home, PackageIcon, Moon, Sun, Monitor, Users, Car, Settings } from "lucide-react"
 import { useTheme } from "next-themes"
+import { usePathname } from "next/navigation"
+import { getCurrentOrgId } from "@/lib/org-utils"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { BrandButton } from "@/components/brand-button"
 import { SidebarButton } from "@/components/sidebar-button"
+import { TeamSwitcher } from "@/components/team-switcher"
+import { MedikalLogo } from "@/components/medikal-logo"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   Sidebar,
@@ -20,19 +24,34 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// Simplified data for Medi-Kal
-const mediKalData = {
-  navMain: [
-    { title: "דשבורד", url: "/", icon: Home },
-    { title: "משימות", url: "/deliveries", icon: PackageIcon },
-    { title: "נהגים", url: "/drivers", icon: Users },
-    { title: "רכבים", url: "/cars", icon: Car },
-    { title: "דוחות רכב", url: "/car-reports", icon: Car },
-  ],
+// Create org-aware navigation data
+function createMediKalData(orgId: string) {
+  return {
+    teams: [
+      {
+        name: "medi-קל",
+        logo: MedikalLogo,
+        plan: "מערכת ניהול משלוחים",
+      },
+    ],
+    navMain: [
+      { title: "דשבורד", url: `/${orgId}`, icon: Home },
+      { title: "משימות", url: `/${orgId}/deliveries`, icon: PackageIcon },
+      { title: "נהגים", url: `/${orgId}/drivers`, icon: Users },
+      { title: "רכבים", url: `/${orgId}/cars`, icon: Car },
+      { title: "דוחות רכב", url: `/${orgId}/car-reports`, icon: Car },
+    ],
+    navSecondary: [
+      { title: "הגדרות", url: `/${orgId}/settings`, icon: Settings },
+    ],
+  }
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { setTheme } = useTheme()
+  const pathname = usePathname()
+  const orgId = getCurrentOrgId(pathname)
+  const mediKalData = createMediKalData(orgId)
 
   return (
     <Sidebar side="right" collapsible="icon" className="bg-card group/sidebar" {...props}>
@@ -44,8 +63,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarButton />
         </div>
       </SidebarHeader>
-      <SidebarContent className="p-2">
+      <SidebarContent className="p-2 relative">
+        <TeamSwitcher teams={mediKalData.teams} />
         <NavMain items={mediKalData.navMain} />
+        
+        {/* Secondary Navigation at the bottom of content */}
+        <div className="mt-auto pt-4 border-t border-sidebar-border">
+          <NavMain items={mediKalData.navSecondary} />
+        </div>
       </SidebarContent>
       <SidebarFooter className="p-2 border-t">
         <SidebarMenu>

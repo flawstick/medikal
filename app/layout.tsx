@@ -2,8 +2,7 @@ import type React from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { Providers } from "@/components/providers";
 
@@ -32,22 +31,9 @@ export default function RootLayout({
           </a>
         </div>
         <Providers>
-          <SidebarProvider defaultOpen={false}>
-            <nav id="main-navigation" role="navigation" aria-label="ניווט ראשי">
-              <AppSidebar />
-            </nav>
-            <SidebarInset className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
-              <main
-                id="main-content"
-                role="main"
-                className="flex-1 space-y-4 p-8 pt-6"
-              >
-                {children}
-              </main>
-            </SidebarInset>
-          </SidebarProvider>
-          <Toaster />
+          <SidebarProvider defaultOpen={false}>{children}</SidebarProvider>
         </Providers>
+        <Toaster />
       </body>
     </html>
   );

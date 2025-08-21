@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { db } from "@/server/db";
 import type { APIResponse } from "@/lib/types";
 
+export const runtime = "edge";
+
 const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key";
 
 interface JWTPayload {

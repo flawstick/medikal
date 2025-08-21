@@ -101,6 +101,31 @@ export function FormLoadingSkeleton() {
   )
 }
 
+// Loading skeleton for chart
+export function ChartLoadingSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-32" />
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-40" />
+          <div className="flex gap-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Skeleton className="h-10 w-32" />
+        </div>
+      </CardHeader>
+      <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+        <Skeleton className="h-[300px] w-full" />
+      </CardContent>
+    </Card>
+  )
+}
+
 // Page loading component
 export function PageLoading({ text = "טוען עמוד..." }: { text?: string }) {
   return (

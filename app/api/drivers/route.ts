@@ -4,6 +4,8 @@ import type { CreateDriverRequest, Driver, APIResponse } from "@/lib/types"
 import { validateDriver } from "@/lib/validation"
 import bcryptjs from "bcryptjs"
 
+export const runtime = "edge";
+
 export async function GET(request: NextRequest): Promise<NextResponse<Driver[] | APIResponse>> {
   try {
     const { searchParams } = new URL(request.url);

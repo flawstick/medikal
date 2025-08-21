@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/server/db"
 import type { Mission, APIResponse, CreateMissionRequest } from "@/lib/types"
 
+export const runtime = "edge";
+
 // DELETE /api/orders/[id] - Delete a specific mission
 export async function DELETE(
   request: NextRequest,

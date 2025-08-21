@@ -3,6 +3,8 @@ import { db } from "@/server/db"
 import type { CreateMissionRequest, Mission, APIResponse, PaginatedResponse } from "@/lib/types"
 import { validateMission } from "@/lib/validation"
 
+export const runtime = "edge";
+
 export async function GET(request: NextRequest): Promise<NextResponse<PaginatedResponse<Mission> | APIResponse>> {
   try {
     const { searchParams } = new URL(request.url);

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computeNearestNeighborRoute } from "../../../lib/routeUtils";
 
+export const runtime = "edge";
+
 interface RouteOptimizationRequest {
   start: string;
   addresses: string[]; // up to 20 addresses
