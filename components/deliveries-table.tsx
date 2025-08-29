@@ -1,7 +1,7 @@
 "use client"
 import type { DateRange } from "react-day-picker"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -67,13 +67,26 @@ export function DeliveriesTable({
     setCurrentPage(1)
   }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery, dateRange])
 
+  // Track first load and in-flight requests
+  const initialLoadDoneRef = useRef(false)
+  const inFlightRef = useRef(false)
+
   // Fetch the current group of pages when filters, search, sort, or groupIndex change
   useEffect(() => {
-    fetchGroupData()
+    const doFetch = async () => {
+      await fetchGroupData(true)
+      initialLoadDoneRef.current = true
+    }
+    doFetch()
   }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, groupIndex])
+
   // Poll for updates every 15 seconds for the current group
   useEffect(() => {
-    const interval = setInterval(fetchGroupData, 15000)
+    const tick = async () => {
+      if (!initialLoadDoneRef.current || inFlightRef.current) return
+      await fetchGroupData(false)
+    }
+    const interval = setInterval(tick, 15000)
     return () => clearInterval(interval)
   }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, groupIndex])
 
@@ -82,9 +95,10 @@ export function DeliveriesTable({
   }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery, dateRange])
 
   // Fetch a batch of pages (group) from server
-  const fetchGroupData = async () => {
-    // Indicate loading state for new group fetch
-    setLoading(true)
+  const fetchGroupData = async (showLoading: boolean = false) => {
+    if (inFlightRef.current) return
+    inFlightRef.current = true
+    if (showLoading) setLoading(true)
     try {
       // Build query parameters including offset-based group fetch
       const params = new URLSearchParams({
@@ -115,19 +129,33 @@ export function DeliveriesTable({
       const response = await fetch(`/api/orders?${params}`)
       if (response.ok) {
         const result = await response.json()
-        if (Array.isArray(result)) {
-          // Fallback for simple array responses
-          setGroupData(result)
-          setTotalItems(result.length)
+        const nextData: Mission[] = Array.isArray(result) ? result : (result.data || [])
+        const nextTotal: number = Array.isArray(result) ? result.length : (result.pagination?.total || 0)
+
+        let changed = false
+        if (groupData.length !== nextData.length || totalItems !== nextTotal) {
+          changed = true
         } else {
-          setGroupData(result.data || [])
-          setTotalItems(result.pagination?.total || 0)
+          for (let i = 0; i < nextData.length; i++) {
+            const a = groupData[i]
+            const b = nextData[i]
+            if (!a || !b || a.id !== b.id || a.status !== b.status || a.completed_at !== b.completed_at) {
+              changed = true
+              break
+            }
+          }
+        }
+
+        if (changed) {
+          setGroupData(nextData)
+          setTotalItems(nextTotal)
         }
       }
     } catch (error) {
       console.error("Error fetching missions:", error)
     } finally {
-      setLoading(false)
+      inFlightRef.current = false
+      if (showLoading) setLoading(false)
     }
   }
 

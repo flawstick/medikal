@@ -240,8 +240,8 @@ export default function MembersPage() {
       <div className="grid gap-6 mb-6 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">סה"כ חברים</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">סה"כ חברים</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{organization?.members?.length || 0}</div>
@@ -251,8 +251,8 @@ export default function MembersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">הזמנות ממתינות</CardTitle>
             <Mail className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">הזמנות ממתינות</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{organization?.invitations?.length || 0}</div>
@@ -262,8 +262,8 @@ export default function MembersPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">מנהלים</CardTitle>
             <Crown className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">מנהלים</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -287,11 +287,8 @@ export default function MembersPage() {
         <TabsContent value="members">
           <Card>
             <CardHeader>
+              <CardDescription>רשימת כל חברי הצוות המאושרים</CardDescription>
               <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  חברי צוות
-                </div>
                 <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
                   <DialogTrigger asChild>
                     <Button>
@@ -340,8 +337,11 @@ export default function MembersPage() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                <div className="flex items-center gap-2">
+                  חברי צוות
+                  <Users className="h-5 w-5" />
+                </div>
               </CardTitle>
-              <CardDescription>רשימת כל חברי הצוות המאושרים</CardDescription>
             </CardHeader>
             <CardContent>
               {!organization?.members || organization.members.length === 0 ? (
@@ -352,43 +352,15 @@ export default function MembersPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-right">חבר</TableHead>
-                      <TableHead className="text-right">תפקיד</TableHead>
-                      <TableHead className="text-right">תאריך הצטרפות</TableHead>
                       <TableHead className="text-right">פעולות</TableHead>
+                      <TableHead className="text-right">תאריך הצטרפות</TableHead>
+                      <TableHead className="text-right">תפקיד</TableHead>
+                      <TableHead className="text-right">חבר</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {organization.members.map((member) => (
                       <TableRow key={member.id}>
-                        <TableCell className="text-right">
-                          <div className="flex items-center gap-3 justify-end">
-                            <div className="text-right">
-                              <p className="font-medium">{member.email}</p>
-                            </div>
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback>{getInitials(member.email)}</AvatarFallback>
-                            </Avatar>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
-                            {member.role === 'admin' ? (
-                              <>
-                                <Crown className="h-3 w-3 mr-1" />
-                                מנהל
-                              </>
-                            ) : (
-                              <>
-                                <User className="h-3 w-3 mr-1" />
-                                חבר
-                              </>
-                            )}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {new Date(member.joined_at).toLocaleDateString('he-IL')}
-                        </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -396,7 +368,7 @@ export default function MembersPage() {
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="start">
                               <DropdownMenuItem 
                                 onClick={() => updateMemberRole(member.id, member.role === 'admin' ? 'member' : 'admin')}
                               >
@@ -406,11 +378,39 @@ export default function MembersPage() {
                                 className="text-destructive"
                                 onClick={() => removeMember(member.id)}
                               >
-                                <Trash2 className="h-4 w-4 mr-2" />
                                 הסר מהארגון
+                                <Trash2 className="h-4 w-4 ml-2" />
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {new Date(member.joined_at).toLocaleDateString('he-IL')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
+                            {member.role === 'admin' ? (
+                              <>
+                                מנהל
+                                <Crown className="h-3 w-3 ml-1" />
+                              </>
+                            ) : (
+                              <>
+                                חבר
+                                <User className="h-3 w-3 ml-1" />
+                              </>
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center gap-3 justify-end">
+                            <div className="text-right">
+                              <p className="font-medium">{member.email}</p>
+                            </div>
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback>{getInitials(member.email)}</AvatarFallback>
+                            </Avatar>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -425,8 +425,8 @@ export default function MembersPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
                 הזמנות ממתינות
+                <Mail className="h-5 w-5" />
               </CardTitle>
               <CardDescription>הזמנות שנשלחו לחברים חדשים</CardDescription>
             </CardHeader>
@@ -441,24 +441,15 @@ export default function MembersPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-right">אימייל</TableHead>
-                      <TableHead className="text-right">תפקיד</TableHead>
-                      <TableHead className="text-right">תאריך הזמנה</TableHead>
                       <TableHead className="text-right">פעולות</TableHead>
+                      <TableHead className="text-right">תאריך הזמנה</TableHead>
+                      <TableHead className="text-right">תפקיד</TableHead>
+                      <TableHead className="text-right">אימייל</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {organization.invitations.map((invitation) => (
                       <TableRow key={invitation.email}>
-                        <TableCell className="text-right">{invitation.email}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant="outline">
-                            {invitation.role === 'admin' ? 'מנהל' : 'חבר'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {new Date(invitation.invited_at).toLocaleDateString('he-IL')}
-                        </TableCell>
                         <TableCell className="text-right">
                           <Button 
                             variant="ghost" 
@@ -468,6 +459,15 @@ export default function MembersPage() {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
+                        <TableCell className="text-right">
+                          {new Date(invitation.invited_at).toLocaleDateString('he-IL')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="outline">
+                            {invitation.role === 'admin' ? 'מנהל' : 'חבר'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{invitation.email}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

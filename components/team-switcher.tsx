@@ -1,125 +1,159 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { ChevronsUpDown, Plus } from "lucide-react"
-import { useRouter, usePathname } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { getCurrentOrgId, isValidOrgId } from '@/lib/org-utils'
+import * as React from "react";
+import Image from "next/image";
+import { ChevronsUpDown } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { getCurrentOrgId, isValidOrgId } from "@/lib/org-utils";
+import { getOrgLogoUrl } from "@/lib/upload-utils";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 interface Organization {
-  id: string
-  name: string
-  slug: string
+  id: string;
+  name: string;
+  slug: string;
+  logo_url?: string;
 }
 
 export function TeamSwitcher({
   teams,
 }: {
   teams: {
-    name: string
-    logo: React.ElementType
-    plan: string
-  }[]
+    name: string;
+    logo: React.ElementType;
+    plan: string;
+  }[];
 }) {
-  const { isMobile } = useSidebar()
-  const router = useRouter()
-  const pathname = usePathname()
-  const supabase = createClientComponentClient()
-  
-  const [organizations, setOrganizations] = React.useState<Organization[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [currentOrgId, setCurrentOrgId] = React.useState(() => getCurrentOrgId(pathname))
-  const [activeTeam, setActiveTeam] = React.useState(teams[0])
+  const { isMobile } = useSidebar();
+  const router = useRouter();
+  const pathname = usePathname();
+  const supabase = createClientComponentClient();
+
+  const [organizations, setOrganizations] = React.useState<Organization[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [currentOrgId, setCurrentOrgId] = React.useState(() =>
+    getCurrentOrgId(pathname),
+  );
+  const [activeTeam, setActiveTeam] = React.useState(teams[0]);
 
   // Load organizations from database
   React.useEffect(() => {
     async function loadOrganizations() {
       try {
         const { data, error } = await supabase
-          .from('organizations')
-          .select('id, name, slug')
-          .order('name')
+          .from("organizations")
+          .select("id, name, slug, logo_url")
+          .order("name");
 
-        console.log('Organizations query result:', { data, error })
+        console.log("Organizations query result:", { data, error });
 
         if (error) {
-          console.error('Supabase error:', error)
-          throw error
+          console.error("Supabase error:", error);
+          throw error;
         }
 
         if (data) {
-          setOrganizations(data)
+          setOrganizations(data);
         }
       } catch (error) {
-        console.error('Error loading organizations:', error)
+        console.error("Error loading organizations:", error);
         // Fallback to default org
-        setOrganizations([{
-          id: '1c595cc2-0e29-4b19-84f3-ab4ec61f655c',
-          name: 'מדי-קל',
-          slug: 'medikal'
-        }])
+        setOrganizations([
+          {
+            id: "1c595cc2-0e29-4b19-84f3-ab4ec61f655c",
+            name: "מדי-קל",
+            slug: "medikal",
+            logo_url: null,
+          },
+        ]);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    loadOrganizations()
-  }, [supabase])
+    loadOrganizations();
+  }, [supabase]);
 
   // Update current org when pathname changes
   React.useEffect(() => {
-    const newOrgId = getCurrentOrgId(pathname)
-    setCurrentOrgId(newOrgId)
-  }, [pathname])
+    const newOrgId = getCurrentOrgId(pathname);
+    setCurrentOrgId(newOrgId);
+  }, [pathname]);
 
-  const currentOrg = organizations.find(org => org.id === currentOrgId) || organizations[0]
+  const currentOrg =
+    organizations.find((org) => org.id === currentOrgId) || organizations[0];
+
+  // Component to render organization logo or initials
+  const OrgLogo = ({
+    org,
+    size = "default",
+  }: {
+    org: Organization;
+    size?: "small" | "default";
+  }) => {
+    const logoUrl = org.logo_url ? getOrgLogoUrl(org.logo_url) : "/acme.jpg";
+
+    const sizeInPx = size === "small" ? 24 : 32;
+
+    return (
+      <Image
+        src={logoUrl}
+        alt={`לוגו ${org.name}`}
+        width={sizeInPx}
+        height={sizeInPx}
+        className="rounded-lg object-cover"
+        onError={() => {
+          // Next.js Image handles fallback through unoptimized prop if needed
+        }}
+        unoptimized // Since we're using external URLs
+      />
+    );
+  };
 
   const handleOrgSwitch = (newOrgId: string) => {
     // Get current path after the orgId
-    const segments = pathname.split('/').filter(Boolean)
-    const isOrgRoute = segments[0] && isValidOrgId(segments[0])
-    
-    let newPath: string
-    
+    const segments = pathname.split("/").filter(Boolean);
+    const isOrgRoute = segments[0] && isValidOrgId(segments[0]);
+
+    let newPath: string;
+
     if (isOrgRoute) {
       // Remove current orgId and construct new path
-      const pathAfterOrg = segments.slice(1).join('/')
-      newPath = pathAfterOrg ? `/${newOrgId}/${pathAfterOrg}` : `/${newOrgId}`
-      
+      const pathAfterOrg = segments.slice(1).join("/");
+      newPath = pathAfterOrg ? `/${newOrgId}/${pathAfterOrg}` : `/${newOrgId}`;
+
       // Check if the path contains dynamic segments that might not exist in new org
-      const hasDynamicSegments = pathAfterOrg.split('/').some(segment => {
+      const hasDynamicSegments = pathAfterOrg.split("/").some((segment) => {
         // Check for UUIDs or IDs that might be org-specific
-        return /^[0-9a-f-]{36}$|^[0-9]+$/.test(segment)
-      })
-      
+        return /^[0-9a-f-]{36}$|^[0-9]+$/.test(segment);
+      });
+
       if (hasDynamicSegments) {
         // For dynamic routes, go to the base page of that section
-        const basePath = pathAfterOrg.split('/')[0]
-        newPath = `/${newOrgId}/${basePath}`
+        const basePath = pathAfterOrg.split("/")[0];
+        newPath = `/${newOrgId}/${basePath}`;
       }
     } else {
       // For non-org routes, just add the org prefix
-      newPath = `/${newOrgId}${pathname}`
+      newPath = `/${newOrgId}${pathname}`;
     }
-    
-    router.push(newPath)
-  }
+
+    router.push(newPath);
+  };
 
   if (!activeTeam || loading) {
     return (
@@ -130,14 +164,14 @@ export function TeamSwitcher({
               <div className="size-4 bg-muted-foreground/20 rounded" />
             </div>
             <div className="grid flex-1 text-right text-sm leading-tight">
-              <div className="h-4 bg-muted-foreground/20 rounded w-16" />
-              <div className="h-3 bg-muted-foreground/10 rounded w-24 mt-1" />
+              <div className="h-4 bg-muted-foreground/20 rounded w-20" />
+              <div className="h-3 bg-muted-foreground/10 rounded w-16 mt-1" />
             </div>
-            <ChevronsUpDown className="ml-auto" />
+            <ChevronsUpDown className="ml-auto size-4" />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
-    )
+    );
   }
 
   return (
@@ -149,20 +183,32 @@ export function TeamSwitcher({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <activeTeam.logo className="size-4" />
-              </div>
+              {currentOrg ? (
+                <OrgLogo org={currentOrg} />
+              ) : activeTeam ? (
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                  <activeTeam.logo className="size-4" />
+                </div>
+              ) : (
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                  <div className="size-4 bg-white rounded" />
+                </div>
+              )}
               <div className="grid flex-1 text-right text-sm leading-tight">
-                <span className="truncate font-medium">{currentOrg?.name || activeTeam.name}</span>
-                <span className="truncate text-xs">{activeTeam.plan}</span>
+                <span className="truncate font-medium">
+                  {currentOrg?.name || activeTeam?.name || "מדי-קל"}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {currentOrg?.slug || "מערכת ניהול משלוחים"}
+                </span>
               </div>
-              <ChevronsUpDown className="ml-auto" />
+              <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             align="start"
-            side={isMobile ? "bottom" : "right"}
+            side={isMobile ? "bottom" : "left"}
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-muted-foreground text-xs text-right">
@@ -174,9 +220,7 @@ export function TeamSwitcher({
                 onClick={() => handleOrgSwitch(org.id)}
                 className="gap-2 p-2 cursor-pointer"
               >
-                <div className="flex size-6 items-center justify-center rounded-md border">
-                  <activeTeam.logo className="size-3.5 shrink-0" />
-                </div>
+                <OrgLogo org={org} size="small" />
                 <div className="flex flex-col items-end flex-1">
                   <span className="font-medium">{org.name}</span>
                   <span className="text-xs text-muted-foreground">
@@ -188,16 +232,9 @@ export function TeamSwitcher({
                 )}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
-              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-                <Plus className="size-4" />
-              </div>
-              <div className="text-muted-foreground font-medium">ארגון חדש</div>
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }

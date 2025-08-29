@@ -45,25 +45,7 @@ export default function LoginPage() {
     const email = formData.get('email') as string;
 
     try {
-      // First, check if user exists in our user_profiles table
-      const { data: existingProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id, email')
-        .eq('email', email)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        // PGRST116 is "not found" error, which is expected for new users
-        throw profileError;
-      }
-
-      if (!existingProfile) {
-        // User doesn't exist in our system
-        setError('המשתמש לא נמצא במערכת. אנא הירשמו תחילה.');
-        return;
-      }
-
-      // User exists, send magic link
+      // Send magic link
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -74,6 +56,7 @@ export default function LoginPage() {
       if (error) throw error;
       
       setShowMagicLinkSent(true);
+      setEmail('');
     } catch (err: any) {
       setError(err.message || 'Failed to send magic link');
     } finally {
@@ -102,33 +85,6 @@ export default function LoginPage() {
     },
   ];
 
-  if (showMagicLinkSent) {
-    return (
-      <div className="h-[100dvh] flex items-center justify-center p-8">
-        <div className="text-center max-w-md">
-          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-            <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-semibold mb-2">בדקו את המייל שלכם!</h2>
-          <p className="text-muted-foreground mb-6">
-            שלחנו לכם קישור קסם לכתובת<br />
-            <span className="font-medium text-foreground">{email}</span>
-          </p>
-          <button
-            onClick={() => {
-              setShowMagicLinkSent(false);
-              setEmail('');
-            }}
-            className="text-violet-400 hover:underline"
-          >
-            חזרה להתחברות
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row font-geist w-[100dvw]">
@@ -148,6 +104,12 @@ export default function LoginPage() {
               </div>
             )}
 
+            {showMagicLinkSent && (
+              <div className="animate-element p-4 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm">
+                קישור קסם נשלח לכתובת המייל שלכם! בדקו את תיבת הדואר.
+              </div>
+            )}
+
             <form className="space-y-5" onSubmit={handleMagicLinkSignIn}>
               <div className="animate-element animate-delay-300">
                 <label className="text-sm font-medium text-muted-foreground">כתובת אימייל</label>
@@ -156,7 +118,11 @@ export default function LoginPage() {
                     name="email" 
                     type="email" 
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (showMagicLinkSent) setShowMagicLinkSent(false);
+                      if (error) setError('');
+                    }}
                     placeholder="הכניסו את כתובת האימייל" 
                     className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none" 
                     required

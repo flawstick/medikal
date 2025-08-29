@@ -10,7 +10,6 @@ import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { BrandButton } from "@/components/brand-button"
 import { SidebarButton } from "@/components/sidebar-button"
-import { TeamSwitcher } from "@/components/team-switcher"
 import { MedikalLogo } from "@/components/medikal-logo"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -64,7 +63,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2 relative">
-        <TeamSwitcher teams={mediKalData.teams} />
         <NavMain items={mediKalData.navMain} />
         
         {/* Secondary Navigation at the bottom of content */}

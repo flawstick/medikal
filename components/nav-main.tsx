@@ -8,6 +8,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 export interface NavItem {
@@ -19,24 +20,25 @@ export interface NavItem {
 
 export function NavMain({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
-  const menuRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
-  
+  const { state } = useSidebar();
+  const menuRef = useRef<HTMLUListElement>(null);
+  const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
+
   const [indicatorStyles, setIndicatorStyles] = useState<{
     top: number;
     height: number;
   }>({ top: 0, height: 0 });
-  
+
   const [activeBoxStyles, setActiveBoxStyles] = useState<{
     top: number;
     height: number;
   }>({ top: 0, height: 0 });
-  
+
   const [lineStyles, setLineStyles] = useState<{
     top: number;
     height: number;
   }>({ top: 0, height: 0 });
-  
+
   const [indicatorVisible, setIndicatorVisible] = useState(false);
   const [justActivated, setJustActivated] = useState(false);
   const [justRendered, setJustRendered] = useState(true);
@@ -60,22 +62,44 @@ export function NavMain({ items }: { items: NavItem[] }) {
 
   function getActiveIndex() {
     return items.findIndex((item) => {
-      // Handle org-specific root path
-      if (item.url.match(/^\/[^\/]+$/) && pathname === item.url) return true;
-      // Handle upload page for deliveries
-      if (item.url.endsWith("/deliveries") && pathname.endsWith("/upload")) return true;
-      // Handle car-reports and its sub-pages
-      if (item.url.endsWith("/car-reports") && pathname.includes("/car-reports")) return true;
-      // Handle settings and its sub-pages
-      if (item.url.endsWith("/settings") && pathname.includes("/settings")) return true;
-      // Default: check if pathname starts with the item URL
-      return pathname.startsWith(item.url);
+      // Extract the route segment from both pathname and item.url
+      const pathSegments = pathname.split("/").filter(Boolean);
+      const itemSegments = item.url.split("/").filter(Boolean);
+
+      // For org root (like /orgId), check exact match
+      if (itemSegments.length === 1 && pathSegments.length === 1) {
+        return pathSegments[0] === itemSegments[0];
+      }
+
+      // For other routes, check if the last segment matches and orgId matches
+      if (itemSegments.length >= 2 && pathSegments.length >= 2) {
+        const orgIdMatches = pathSegments[0] === itemSegments[0];
+        const routeMatches = pathSegments[1] === itemSegments[1];
+
+        if (orgIdMatches && routeMatches) return true;
+
+        // Special case: upload page should highlight deliveries
+        if (
+          orgIdMatches &&
+          itemSegments[1] === "deliveries" &&
+          pathSegments[1] === "upload"
+        ) {
+          return true;
+        }
+      }
+
+      return false;
     });
   }
 
-  useEffect(() => {
+  // Function to recalculate all positions
+  const recalculatePositions = () => {
     const activeIndex = getActiveIndex();
-    if (activeIndex !== -1 && itemRefs.current[activeIndex] && menuRef.current) {
+    if (
+      activeIndex !== -1 &&
+      itemRefs.current[activeIndex] &&
+      menuRef.current
+    ) {
       updateIndicator(activeIndex);
       // Update active box position
       const menuRect = menuRef.current.getBoundingClientRect();
@@ -102,7 +126,19 @@ export function NavMain({ items }: { items: NavItem[] }) {
       setActiveBoxStyles({ top: 0, height: 0 });
       setLineStyles({ top: 0, height: 0 });
     }
+  };
+
+  // Recalculate when pathname changes
+  useEffect(() => {
+    recalculatePositions();
   }, [pathname]);
+
+  // Recalculate when sidebar state changes (collapsed/expanded)
+  useEffect(() => {
+    // Add a small delay to allow the sidebar transition to complete
+    const timer = setTimeout(recalculatePositions, 150);
+    return () => clearTimeout(timer);
+  }, [state]);
 
   function handleItemMouseEnter(index: number) {
     if (!indicatorVisible) {
@@ -113,7 +149,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
       updateIndicator(index);
       setJustActivated(false);
     }
-    
+
     // Update line position on hover and make it visible
     if (itemRefs.current[index] && menuRef.current) {
       const menuRect = menuRef.current.getBoundingClientRect();
@@ -129,10 +165,14 @@ export function NavMain({ items }: { items: NavItem[] }) {
   function handleMenuMouseLeave() {
     setIndicatorVisible(false);
     setJustActivated(false);
-    
+
     // Reset line to active item position or hide if no active item
     const activeIndex = getActiveIndex();
-    if (activeIndex !== -1 && itemRefs.current[activeIndex] && menuRef.current) {
+    if (
+      activeIndex !== -1 &&
+      itemRefs.current[activeIndex] &&
+      menuRef.current
+    ) {
       const menuRect = menuRef.current.getBoundingClientRect();
       const itemRect = itemRefs.current[activeIndex]!.getBoundingClientRect();
       setLineStyles({
@@ -146,8 +186,8 @@ export function NavMain({ items }: { items: NavItem[] }) {
   }
 
   return (
-    <SidebarMenu 
-      ref={menuRef} 
+    <SidebarMenu
+      ref={menuRef}
       className="relative"
       onMouseLeave={handleMenuMouseLeave}
     >
@@ -167,7 +207,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
           }}
         />
       )}
-      
+
       {/* Hover indicator */}
       <motion.div
         className="absolute left-0 right-0 bg-accent rounded-md pointer-events-none z-0"
@@ -198,28 +238,30 @@ export function NavMain({ items }: { items: NavItem[] }) {
               }
         }
       />
-      
+
       {/* Primary colored line on the right edge */}
       <motion.div
-        className="fixed right-0 w-0.5 bg-primary pointer-events-none z-50"
+        className="absolute -mr-2 w-0.5 bg-primary pointer-events-none z-50"
         animate={{
-          top: lineStyles.top + (menuRef.current?.getBoundingClientRect().top || 0),
+          top: lineStyles.top,
           height: lineStyles.height,
           opacity: lineVisible ? 1 : 0,
         }}
-        transition={{ 
+        transition={{
           top: { type: "spring", stiffness: 300, damping: 30 },
           height: { type: "spring", stiffness: 300, damping: 30 },
-          opacity: { duration: 0.2, ease: "easeInOut" }
+          opacity: { duration: 0.2, ease: "easeInOut" },
         }}
       />
       {items.map((item, index) => {
         const isActive = getActiveIndex() === index;
 
         return (
-          <SidebarMenuItem 
-            key={item.title} 
-            ref={(el) => (itemRefs.current[index] = el)}
+          <SidebarMenuItem
+            key={item.title}
+            ref={(el) => {
+              itemRefs.current[index] = el;
+            }}
             onMouseEnter={() => handleItemMouseEnter(index)}
             className="relative"
           >
@@ -228,9 +270,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
               tooltip={item.title}
               className={`
                 justify-start text-right transition-colors relative z-10
-                ${isActive
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground"}
+                ${
+                  isActive
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                }
                 hover:bg-transparent
               `}
             >

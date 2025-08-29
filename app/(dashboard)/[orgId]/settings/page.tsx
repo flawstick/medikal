@@ -1,19 +1,23 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/components/auth-provider'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Camera, Save } from 'lucide-react'
+import { Camera, Save, Building2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { OrganizationLogoUpload } from '@/components/organization-logo-upload'
 
-export default function ProfileSettingsPage() {
+export default function SettingsPage() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const params = useParams()
   const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -24,12 +28,23 @@ export default function ProfileSettingsPage() {
     company: '',
     avatar_url: ''
   })
+  const [organization, setOrganization] = useState<{
+    id: string;
+    name: string;
+    slug: string;
+    logo_url?: string;
+  } | null>(null)
+
+  const orgId = params?.orgId as string
 
   useEffect(() => {
     if (user) {
       loadProfile()
     }
-  }, [user])
+    if (orgId) {
+      loadOrganization()
+    }
+  }, [user, orgId])
 
   const loadProfile = async () => {
     setIsLoading(true)
@@ -53,6 +68,22 @@ export default function ProfileSettingsPage() {
       console.error('Error loading profile:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadOrganization = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('id, name, slug, logo_url')
+        .eq('id', orgId)
+        .single()
+
+      if (data) {
+        setOrganization(data)
+      }
+    } catch (error) {
+      console.error('Error loading organization:', error)
     }
   }
 
@@ -130,13 +161,27 @@ export default function ProfileSettingsPage() {
   return (
     <div className="p-8 pt-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">פרופיל</h1>
+        <h1 className="text-3xl font-bold mb-2">הגדרות</h1>
         <p className="text-muted-foreground">
-          עדכון הפרטים האישיים שלך
+          נהל את הפרופיל שלך ואת הגדרות הארגון
         </p>
       </div>
 
-      <div className="space-y-6 max-w-2xl">
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="profile" className="flex items-center gap-2">
+            <Camera className="h-4 w-4" />
+            פרופיל אישי
+          </TabsTrigger>
+          <TabsTrigger value="organization" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            הגדרות ארגון
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile" className="space-y-6 mt-6">
+
+      <div className="space-y-6 w-full">
         <Card>
           <CardHeader>
             <CardTitle>תמונת פרופיל</CardTitle>
@@ -274,6 +319,64 @@ export default function ProfileSettingsPage() {
           </Button>
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="organization" className="space-y-6 mt-6">
+          {organization && (
+            <div className="space-y-6 w-full">
+              <OrganizationLogoUpload
+                orgId={organization.id}
+                orgName={organization.name}
+                currentLogoUrl={organization.logo_url}
+                onLogoUpdate={(newLogoUrl) => {
+                  setOrganization({
+                    ...organization,
+                    logo_url: newLogoUrl
+                  })
+                }}
+              />
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>פרטי ארגון</CardTitle>
+                  <CardDescription>
+                    מידע כללי על הארגון
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="org-name">שם ארגון</Label>
+                    <Input
+                      id="org-name"
+                      value={organization.name}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="org-slug">מזהה ארגון</Label>
+                    <Input
+                      id="org-slug"
+                      value={organization.slug}
+                      disabled
+                      className="bg-muted font-mono"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="org-id">מזהה מערכת</Label>
+                    <Input
+                      id="org-id"
+                      value={organization.id}
+                      disabled
+                      className="bg-muted font-mono text-xs"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { OrgProvider } from '@/components/org-provider'
 import { getOrgIdFromParams } from '@/lib/org-utils'
 
-export default function OrgLayout({
+export default async function OrgLayout({
   children,
   params,
 }: {
@@ -9,7 +9,8 @@ export default function OrgLayout({
   params: { orgId: string }
 }) {
   // Validate and normalize the orgId
-  const orgId = getOrgIdFromParams(params.orgId)
+  const { orgId } = await params
+  const normalizedOrgId = getOrgIdFromParams(orgId)
   
   return (
     <OrgProvider>
