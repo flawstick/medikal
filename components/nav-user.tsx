@@ -11,25 +11,69 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
-import { CreditCard, LogOut, MoreVertical, Settings, UserCircle2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { CreditCard, LogOut, MoreVertical, Settings, UserCircle2, Mail } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
 
-// Placeholder user data
-const placeholderUser = {
-  name: "יוסי כהן",
-  email: "yossi@medi-kal.co.il",
-  avatar: "/placeholder.svg?width=128&height=128",
-}
-
-export function NavUser({
-  user = placeholderUser,
-}: {
-  user?: {
-    name: string
-    email: string
-    avatar: string
-  }
-}) {
+export function NavUser() {
   const { isMobile } = useSidebar()
+  const { user, signOut, loading } = useAuth()
+  const router = useRouter()
+  const [signingOut, setSigningOut] = useState(false)
+
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    await signOut()
+    setSigningOut(false)
+    router.push('/auth/login')
+  }
+
+  const handleSignIn = () => {
+    router.push('/auth/login')
+  }
+
+  // If loading, show skeleton
+  if (loading) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <div className="h-8 w-8 rounded-lg bg-muted animate-pulse" />
+            <div className="flex-1 space-y-1">
+              <div className="h-3 bg-muted rounded animate-pulse" />
+              <div className="h-2 bg-muted rounded animate-pulse w-3/4" />
+            </div>
+          </div>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
+
+  // If no user, show sign in button
+  if (!user) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <Button
+            onClick={handleSignIn}
+            variant="outline"
+            size="sm"
+            className="w-full justify-start text-right"
+          >
+            <Mail className="ml-2 h-4 w-4" />
+            התחבר למערכת
+          </Button>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
+
+  // Get user display info
+  const displayName = user.user_metadata?.name || user.email?.split('@')[0] || 'משתמש'
+  const displayEmail = user.email || ''
+  const displayAvatar = user.user_metadata?.avatar_url || "/placeholder.svg"
 
   return (
     <SidebarMenu>
@@ -45,12 +89,12 @@ export function NavUser({
               "
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                <AvatarFallback className="rounded-lg">{user.name.substring(0, 1)}</AvatarFallback>
+                <AvatarImage src={displayAvatar} alt={displayName} />
+                <AvatarFallback className="rounded-lg">{displayName.substring(0, 1).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-right text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="text-muted-foreground truncate text-xs">{user.email}</span>
+                <span className="truncate font-medium">{displayName}</span>
+                <span className="text-muted-foreground truncate text-xs">{displayEmail}</span>
               </div>
               <MoreVertical className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -64,12 +108,12 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-right text-sm">
                 <div className="grid flex-1 text-right text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
-                  <span className="text-muted-foreground truncate text-xs">{user.email}</span>
+                  <span className="truncate font-medium">{displayName}</span>
+                  <span className="text-muted-foreground truncate text-xs">{displayEmail}</span>
                 </div>
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">{user.name.substring(0, 1)}</AvatarFallback>
+                  <AvatarImage src={displayAvatar} alt={displayName} />
+                  <AvatarFallback className="rounded-lg">{displayName.substring(0, 1).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </div>
             </DropdownMenuLabel>
@@ -89,8 +133,12 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="justify-end">
-              <span>התנתק</span>
+            <DropdownMenuItem 
+              className="justify-end cursor-pointer" 
+              onClick={handleSignOut}
+              disabled={signingOut}
+            >
+              <span>{signingOut ? 'מתנתק...' : 'התנתק'}</span>
               <LogOut className="ml-2 size-4" />
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -15,28 +15,22 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
     const sortBy = searchParams.get("sortBy") || "created_at";
     const sortOrder = searchParams.get("sortOrder") || "desc";
     const search = searchParams.get("search");
+    const certificate = searchParams.get("certificate");
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100); // Max 100 items per page
-    // Support offset-based batching when provided
-    const offsetParam = searchParams.get("offset");
-    const offset = offsetParam !== null
-      ? Math.max(parseInt(offsetParam) || 0, 0)
-      : (page - 1) * limit;
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
 
-    // Start building the query (include exact count for pagination)
+    // Start building the query
     let query = db.from("missions").select("*", { count: 'exact' });
 
-    // Apply status filter if provided
+    // Apply filters
     if (status && status !== "all") {
       query = query.eq("status", status);
     }
-
-    // Apply type filter if provided
     if (type && type !== "all") {
       query = query.eq("type", type);
     }
-
-    // Apply car filter if provided
     if (car && car !== "all") {
       if (car === "unassigned") {
         query = query.is("car_id", null);
@@ -44,8 +38,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
         query = query.eq("car_id", parseInt(car));
       }
     }
-
-    // Apply driver filter if provided
     if (driver && driver !== "all") {
       if (driver === "unassigned") {
         query = query.is("driver_id", null);
@@ -54,28 +46,35 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
       }
     }
 
-    // Apply search filter if provided
+    // Apply search filter
     if (search && search.trim()) {
       const searchTerm = search.trim();
-      // Search in multiple fields - driver, type, address
       query = query.or(
         `driver.ilike.%${searchTerm}%,type.ilike.%${searchTerm}%,car_number.ilike.%${searchTerm}%,address->>address.ilike.%${searchTerm}%,address->>city.ilike.%${searchTerm}%`
       );
     }
-    // Apply date range filter if provided
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
-    if (from) {
-      query = query.gte("date_expected", from);
+
+    // Apply date filters
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      if (!isNaN(fromDate.getTime())) {
+        // Filter by created_at date >= dateFrom (start of day)
+        fromDate.setHours(0, 0, 0, 0);
+        query = query.gte("created_at", fromDate.toISOString());
+      }
     }
-    if (to) {
-      query = query.lte("date_expected", to);
+
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      if (!isNaN(toDate.getTime())) {
+        // Filter by created_at date <= dateTo (end of day)
+        toDate.setHours(23, 59, 59, 999);
+        query = query.lte("created_at", toDate.toISOString());
+      }
     }
 
     // Apply sorting
     const ascending = sortOrder === "asc";
-
-    // Handle different sort options
     switch (sortBy) {
       case "created_at":
         query = query.order("created_at", { ascending });
@@ -83,21 +82,18 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
       case "updated_at":
         query = query.order("updated_at", { ascending });
         break;
-      case "completed_at":
-        query = query.order("completed_at", { ascending, nullsFirst: !ascending });
-        break;
-      case "date_expected":
-        query = query.order("date_expected", { ascending, nullsFirst: !ascending });
+      case "time_delivered":
+        query = query.order("time_delivered", { ascending });
         break;
       case "id":
         query = query.order("id", { ascending });
         break;
       default:
-        query = query.order("created_at", { ascending: false }); // Default to newest first
+        query = query.order("created_at", { ascending: false });
     }
 
     // Apply pagination
-    query = query.range(offset, offset + limit - 1);
+    query = query.range((page - 1) * limit, page * limit - 1);
 
     const { data: missions, error, count } = await query;
 
@@ -109,21 +105,57 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
       );
     }
 
+    // Apply certificate filtering in JavaScript if needed
+    let filteredMissions = missions;
+    if (certificate && certificate.trim()) {
+      const certTerm = certificate.trim();
+
+      filteredMissions = missions?.filter((mission: any) => {
+        let certificates = mission.certificates;
+
+        // Handle case where certificates might be stored as JSON string
+        if (typeof certificates === 'string') {
+          try {
+            certificates = JSON.parse(certificates);
+          } catch (e) {
+            return false;
+          }
+        }
+
+        if (!certificates || !Array.isArray(certificates)) {
+          return false;
+        }
+
+        // Check if any certificate in the array matches
+        return certificates.some((cert: any) =>
+          cert?.certificate_number && cert.certificate_number.toString().includes(certTerm)
+        );
+      }) || [];
+    }
+
     // Return paginated response with metadata
+    // For certificate filtering, we need to recalculate pagination
+    const totalCount = certificate && certificate.trim() ? filteredMissions.length : (count || 0);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedMissions = certificate && certificate.trim()
+      ? filteredMissions.slice(startIndex, endIndex)
+      : filteredMissions;
+
     return NextResponse.json({
-      data: missions,
+      data: paginatedMissions,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
       }
     });
   } catch (error) {
     console.error("Error fetching missions:", error);
     return NextResponse.json(
       { error: "Failed to fetch missions" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -157,28 +189,21 @@ export async function POST(request: NextRequest): Promise<NextResponse<Mission |
       metadata,
     } = body
 
-    const addressObj = address;
-
-    // Determine status based on assignment
-    const status = (driver_id || driver) && (car_id || car_number) ? "waiting" : "unassigned";
-
     const { data, error } = await db
       .from("missions")
-      .insert([
-        {
-          type,
-          subtype: subtype || null,
-          address: addressObj,
-          driver: driver || null,
-          car_number: car_number || null,
-          driver_id: driver_id || null,
-          car_id: car_id || null,
-          status,
-          date_expected: date_expected ? new Date(date_expected).toISOString() : null,
-          certificates: certificates || null,
-          metadata: metadata || null,
-        },
-      ])
+      .insert({
+        type: type || null,
+        subtype: subtype || null,
+        address,
+        driver: driver || null,
+        car_number: car_number || null,
+        driver_id: driver_id || null,
+        car_id: car_id || null,
+        date_expected: date_expected ? new Date(date_expected).toISOString() : null,
+        certificates: certificates || null,
+        metadata: metadata || null,
+        status: "unassigned",
+      })
       .select()
       .single();
 

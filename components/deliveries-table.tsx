@@ -5,21 +5,22 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { MoreHorizontal, Eye, ChevronLeft, ChevronRight, Edit, Trash2 } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { MoreHorizontal, Eye, ChevronLeft, ChevronRight, Edit } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-import type { Mission, MissionStatus } from "@/lib/types"
+import Link from "next/link"
+import type { Mission } from "@/lib/types"
 import { TableLoadingSkeleton, LoadingSpinner } from "@/components/loading-states"
 import { getStatusColor, getStatusText, getAllStatuses } from "@/lib/status-helpers"
 import { formatDate, formatTime } from "@/lib/date-helpers"
 import { MissionActions } from "@/components/mission-actions"
 
-// Number of items to show per page (reduced to fit exactly PAGE_GROUP_SIZE pages)
-const ITEMS_PER_PAGE = 10
+  // Number of items to show per page (fixed for consistent table height)
+  const ITEMS_PER_PAGE = 10
 // Number of pages to fetch in one batch before fetching next batch
 // Number of pages fetched in one batch before hitting server again
 const PAGE_GROUP_SIZE = 10
@@ -35,17 +36,19 @@ interface DeliveriesTableProps {
   sortBy?: string
   sortOrder?: string
   searchQuery?: string
+  certificateQuery?: string
   dateRange?: DateRange
 }
 
-export function DeliveriesTable({ 
+export function DeliveriesTable({
   statusFilter = "all",
   typeFilter = "all",
   carFilter = "all",
   driverFilter = "all",
-  sortBy = "created_at", 
-  sortOrder = "desc", 
+  sortBy = "created_at",
+  sortOrder = "desc",
   searchQuery = "",
+  certificateQuery = "",
   dateRange,
 }: DeliveriesTableProps) {
   const router = useRouter()
@@ -70,41 +73,52 @@ export function DeliveriesTable({
   // Fetch the current group of pages when filters, search, sort, or groupIndex change
   useEffect(() => {
     fetchGroupData()
-  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, groupIndex])
-  // Poll for updates every 15 seconds for the current group
-  useEffect(() => {
-    const interval = setInterval(fetchGroupData, 15000)
-    return () => clearInterval(interval)
-  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, groupIndex])
+  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, certificateQuery, groupIndex])
+    // Poll for updates every 15 seconds for the current group
+    useEffect(() => {
+      const interval = setInterval(() => fetchGroupData(true), 15000)
+      return () => clearInterval(interval)
+    }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, certificateQuery, groupIndex])
 
-  useEffect(() => {
-    setCurrentPage(1) // Reset to first page when filters change
-  }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery, dateRange])
+   useEffect(() => {
+     setCurrentPage(1) // Reset to first page when filters change
+   }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery, certificateQuery, dateRange])
 
   // Fetch a batch of pages (group) from server
-  const fetchGroupData = async () => {
-    // Indicate loading state for new group fetch
-    setLoading(true)
+  const fetchGroupData = async (isPollingUpdate = false) => {
+    // Only show loading state for initial loads, not polling updates
+    if (!isPollingUpdate) {
+      setLoading(true)
+    }
     try {
-      // Build query parameters including offset-based group fetch
-      const params = new URLSearchParams({
-        status: statusFilter,
-        type: typeFilter,
-        car: carFilter,
-        driver: driverFilter,
-        sortBy,
-        sortOrder,
-        limit: GROUP_LIMIT.toString(),
-      })
+       // Build query parameters including offset-based group fetch
+       const params = new URLSearchParams({
+         status: statusFilter,
+         type: typeFilter,
+         car: carFilter,
+         driver: driverFilter,
+         sortBy,
+         sortOrder,
+         limit: GROUP_LIMIT.toString(),
+       })
+       console.log('=== FRONTEND DEBUG ===');
+       console.log('Search query:', searchQuery);
+       console.log('Certificate query:', certificateQuery);
+       console.log('URL params being sent:', params.toString());
+       console.log('Certificate param in URL:', params.get('certificate'));
       // Offset depends on current group of pages
       const offset = groupIndex * GROUP_LIMIT
       if (offset > 0) {
         params.set("offset", offset.toString())
       }
-      // Include search query if any
-      if (searchQuery) {
-        params.append("search", searchQuery)
-      }
+       // Include search query if any
+       if (searchQuery) {
+         params.append("search", searchQuery)
+       }
+       // Include certificate query if any
+       if (certificateQuery) {
+         params.append("certificate", certificateQuery)
+       }
       // Date range filtering
       if (dateRange?.from) {
         params.append("from", dateRange.from.toISOString())
@@ -267,15 +281,15 @@ export function DeliveriesTable({
       </Dialog>
       
       
-      <div>
+      <div className="h-full">
         <div className="rounded-md border overflow-x-auto">
-        <Table role="table" aria-label="טבלת משלוחים">
+        <Table role="table" aria-label="טבלת משלוחים" className="h-full">
         <caption className="sr-only">
             רשימת משלוחים. עמוד {currentPage} מתוך {totalPages}
           </caption>
           <TableHeader>
             <TableRow role="row">
-              <TableHead scope="col" className="text-right">מזהה</TableHead>
+               <TableHead scope="col" className="text-right">לקוח</TableHead>
               <TableHead scope="col" className="text-right">סוג</TableHead>
               <TableHead scope="col" className="text-right">כתובת</TableHead>
               <TableHead scope="col" className="text-right">נהג</TableHead>
@@ -286,10 +300,51 @@ export function DeliveriesTable({
               <TableHead scope="col" className="text-right">פעולות</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+           <TableBody>
             {currentMissions.map((mission) => (
               <TableRow key={mission.id} className="h-16" role="row">
-                <TableCell className="text-right font-medium h-16">#{mission.id}</TableCell>
+                 <TableCell className="text-right font-semibold h-16 text-base">
+                   <HoverCard openDelay={0}>
+                     <HoverCardTrigger asChild>
+                       <Link href={`/deliveries/${mission.id}`}>
+                         <span className="truncate max-w-40 cursor-pointer hover:underline decoration-2 underline-offset-2 transition-all inline-block">
+                           {mission.metadata?.client_name || "לא צוין"}
+                         </span>
+                       </Link>
+                     </HoverCardTrigger>
+                     <HoverCardContent className="w-80" side="left">
+                       <div className="space-y-3">
+                         <div className="space-y-1">
+                           <h4 className="text-sm font-semibold">פרטי לקוח</h4>
+                           <p className="text-sm text-muted-foreground">
+                             {mission.metadata?.client_name || "לא צוין"}
+                           </p>
+                         </div>
+                         {(mission.metadata?.phone_number || mission.address) && (
+                           <div className="space-y-2">
+                             {mission.metadata?.phone_number && (
+                               <div className="flex items-center gap-2">
+                                 <span className="text-xs text-muted-foreground">📞</span>
+                                 <span className="text-sm">{mission.metadata.phone_number}</span>
+                               </div>
+                             )}
+                             {mission.address && (
+                               <div className="flex items-start gap-2">
+                                 <span className="text-xs text-muted-foreground mt-0.5">📍</span>
+                                 <div className="text-sm">
+                                   <div>{mission.address.address}</div>
+                                   <div className="text-muted-foreground">
+                                     {mission.address.city} {mission.address.zip_code}
+                                   </div>
+                                 </div>
+                               </div>
+                             )}
+                           </div>
+                         )}
+                       </div>
+                     </HoverCardContent>
+                   </HoverCard>
+                 </TableCell>
                 <TableCell className="text-right h-16">
                   <div className="text-sm">
                     <div className="font-medium">{mission.type}</div>
@@ -382,15 +437,14 @@ export function DeliveriesTable({
                 </TableCell>
               </TableRow>
             ))}
-            {/* Fill empty rows to maintain consistent height */}
-            {currentMissions.length < ITEMS_PER_PAGE &&
-              Array.from({ length: ITEMS_PER_PAGE - currentMissions.length }).map((_, index) => (
-                <TableRow key={`empty-${index}`} className="h-16">
-                  <TableCell className="h-16" colSpan={9}>
-                    &nbsp;
-                  </TableCell>
-                </TableRow>
-              ))}
+            {/* Fill empty rows to fill the entire available height */}
+            {Array.from({ length: Math.max(0, ITEMS_PER_PAGE - currentMissions.length) }).map((_, index) => (
+              <TableRow key={`empty-${index}`} className="h-16">
+                <TableCell className="h-16 text-center text-muted-foreground" colSpan={9}>
+                  &nbsp;
+                </TableCell>
+              </TableRow>
+            ))}
             
             {/* Show no results message if no items at all */}
             {totalItems === 0 && (

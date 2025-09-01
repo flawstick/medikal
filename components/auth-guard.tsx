@@ -1,62 +1,58 @@
 "use client"
 
-import { useSession } from "next-auth/react"
-import { useRouter, usePathname } from "next/navigation"
-import { useEffect } from "react"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useEffect } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { useAuth } from '@/lib/auth-context'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface AuthGuardProps {
   children: React.ReactNode
 }
 
-const publicRoutes = ["/auth/signin", "/auth/error"]
+const publicRoutes = ["/auth/login", "/auth/callback", "/auth/error"]
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { data: session, status } = useSession()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
-    if (status === "loading") return // Still loading
-
-    const isPublicRoute = publicRoutes.includes(pathname)
-
-    if (!session && !isPublicRoute) {
-      // Not authenticated and trying to access private route
-      router.push("/auth/signin")
-      return
+    if (!loading) {
+      const isPublicRoute = publicRoutes.includes(pathname)
+      
+      if (!user && !isPublicRoute) {
+        router.push('/auth/login')
+      }
+      
+      if (user && pathname === '/auth/login') {
+        router.push('/')
+      }
     }
+  }, [user, loading, router, pathname])
 
-    if (session && isPublicRoute) {
-      // Authenticated but on public route, redirect to home
-      router.push("/")
-      return
-    }
-  }, [session, status, pathname, router])
-
-  // Show loading while checking authentication
-  if (status === "loading") {
+  // Show loading state while checking auth
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-md">
-          <Skeleton className="h-8 w-3/4 mx-auto" />
-          <Skeleton className="h-4 w-1/2 mx-auto" />
-          <Skeleton className="h-32 w-full" />
+      <div className="space-y-8 p-8 pt-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-32" />
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+        </div>
+        <Skeleton className="h-64" />
       </div>
     )
   }
 
-  // Show children if authenticated or on public route
+  // Show nothing while redirecting
   const isPublicRoute = publicRoutes.includes(pathname)
-  if (session || isPublicRoute) {
-    return <>{children}</>
+  if (!user && !isPublicRoute) {
+    return null
   }
 
-  // Fallback loading state
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-muted-foreground">מעביר לעמוד התחברות...</div>
-    </div>
-  )
+  return <>{children}</>
 }

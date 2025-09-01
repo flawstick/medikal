@@ -29,9 +29,21 @@ import {
   ArrowUpDown,
   Car as CarIcon,
   User,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
-import type { Car, Driver } from "@/lib/types";
+import type { Car, Driver, Mission } from "@/lib/types";
+import { getSupabaseClient } from "@/lib/supabase-client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function DeliveriesPage() {
   const searchParams = useSearchParams();
@@ -44,12 +56,45 @@ export default function DeliveriesPage() {
   const searchQuery = searchParams.get("search") ?? "";
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
-  const dateRange: DateRange | undefined = fromParam || toParam ? {
-    from: fromParam ? new Date(fromParam) : undefined,
-    to: toParam ? new Date(toParam) : undefined,
-  } : undefined;
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(
+    fromParam || toParam ? {
+      from: fromParam ? new Date(fromParam) : undefined,
+      to: toParam ? new Date(toParam) : undefined,
+    } : undefined
+  );
   const [cars, setCars] = useState<Car[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [certificateInput, setCertificateInput] = useState(searchParams.get("certificate") || "");
+
+
+  // Update dateRange and certificateInput state when URL parameters change
+  useEffect(() => {
+    const newDateRange = fromParam || toParam ? {
+      from: fromParam ? new Date(fromParam) : undefined,
+      to: toParam ? new Date(toParam) : undefined,
+    } : undefined;
+    setDateRange(newDateRange);
+
+    // Update certificate input
+    setCertificateInput(searchParams.get("certificate") || "");
+  }, [fromParam, toParam, searchParams]);
+  const [problemAlert, setProblemAlert] = useState<{
+    show: boolean;
+    mission: Mission | null;
+  }>({ show: false, mission: null });
+
+  const handleProblemAlertAction = () => {
+    if (problemAlert.mission) {
+      router.push(`/deliveries/${problemAlert.mission.id}`);
+    }
+    setProblemAlert({ show: false, mission: null });
+  };
+
+  const dismissProblemAlert = () => {
+    setProblemAlert({ show: false, mission: null });
+  };
+
+
 
   // Helper to update individual search params in URL
   const updateParam = (key: string, value?: string) => {
@@ -63,8 +108,9 @@ export default function DeliveriesPage() {
     router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
   };
 
-  // Helper to update date range in URL
+  // Helper to update date range in URL and state
   const updateDateRange = (range: DateRange | undefined) => {
+    setDateRange(range); // Update state immediately
     const params = new URLSearchParams(searchParams.toString());
     if (range?.from) {
       params.set("from", range.from.toISOString());
@@ -79,10 +125,11 @@ export default function DeliveriesPage() {
     const queryString = params.toString();
     router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
   };
-  // Clear all filters (status, car, driver, search, date range)
+  // Clear all filters (status, car, driver, search, certificate, date range)
   const clearFilters = () => {
+    setCertificateInput(""); // Clear certificate input
     const params = new URLSearchParams(searchParams.toString());
-    ["status", "car", "driver", "search", "from", "to"].forEach((key) => {
+    ["status", "car", "driver", "search", "certificate", "from", "to"].forEach((key) => {
       params.delete(key);
     });
     const queryString = params.toString();
@@ -115,9 +162,36 @@ export default function DeliveriesPage() {
     fetchFiltersData();
   }, []);
 
+  // Set up realtime subscription for problem status changes
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+
+    const channel = supabase
+      .channel('missions-problem-alerts')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'missions',
+          filter: `status=eq.problem`,
+        },
+        (payload) => {
+          console.log('Mission changed to problem status:', payload);
+          const mission = payload.new as Mission;
+          setProblemAlert({ show: true, mission });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   return (
-    <div className="space-y-6 h-screen flex flex-col">
-      <div className="flex flex-col items-end gap-2 md:flex-row md:justify-between md:items-center">
+    <div className="space-y-1 h-screen flex flex-col">
+      <div className="flex flex-col items-end gap-2 md:flex-row md:justify-between md:items-center flex-shrink-0">
         <div className="text-right">
           <h1 className="text-3xl font-bold tracking-tight">משלוחים</h1>
           <p className="text-muted-foreground mt-1">
@@ -136,15 +210,15 @@ export default function DeliveriesPage() {
         </Button>
       </div>
 
-      <Card className="shadow-sm flex flex-col flex-1">
-        <CardHeader className="space-y-4">
+      <Card className="shadow-sm flex flex-col">
+        <CardHeader className="space-y-3 pb-3 px-4">
           <div className="flex items-center justify-between">
             <CardTitle className="flex flex-row items-center justify-between text-right text-xl w-full">
               <span>כל המשלוחים</span>
               {/* Date Range Popover */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-52">
+                  <Button variant="outline" size="sm" className="w-44">
                     <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
                     {dateRange?.from && dateRange?.to
                       ? `${format(dateRange.from, "P")} - ${format(
@@ -169,8 +243,9 @@ export default function DeliveriesPage() {
             {(statusFilter !== "all" ||
               carFilter !== "all" ||
               driverFilter !== "all" ||
-              searchQuery) && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              searchQuery ||
+              searchParams.get("certificate")) && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                 <span>מסננים פעילים:</span>
                 {statusFilter !== "all" && (
                   <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
@@ -200,37 +275,53 @@ export default function DeliveriesPage() {
                       ?.name || driverFilter}
                   </span>
                 )}
-                {searchQuery && (
-                  <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
-                    חיפוש: "{searchQuery}"
-                  </span>
-                )}
+                 {searchQuery && (
+                   <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
+                     חיפוש: "{searchQuery}"
+                   </span>
+                 )}
+                 {searchParams.get("certificate") && (
+                   <span className="px-2 py-1 bg-primary/10 rounded text-primary text-xs">
+                     תעודה: "{searchParams.get("certificate")}"
+                   </span>
+                 )}
               </div>
             )}
           </div>
 
           {/* Filters and Search */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            {/* Search */}
-            <div className="relative flex-1 max-w-xs order-3 md:order-1">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="חפש משלוחים..."
-                className="pr-10 text-right"
-                value={searchQuery}
-                onChange={(e) => updateParam("search", e.target.value)}
-              />
-            </div>
-            {/* Clear filters button */}
-            <Button variant="outline" className="order-2 md:order-3" onClick={clearFilters}>
-              נקה מסננים
-            </Button>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            {/* Search, Filters and Clear - Left Side */}
+            <div className="flex gap-2 order-1 flex-wrap items-center">
+              {/* Search */}
+              <div className="relative max-w-xs">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="חפש משלוחים..."
+                  className="pr-10 text-right h-9 w-48"
+                  value={searchQuery}
+                  onChange={(e) => updateParam("search", e.target.value)}
+                />
+              </div>
 
-            {/* Filter and Sort Controls */}
-            <div className="flex gap-2 order-1 md:order-2 flex-wrap">
+              {/* Certificate Search */}
+              <div className="relative max-w-xs">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="חפש לפי מספר תעודה..."
+                  className="pr-10 text-right h-9 w-48"
+                  value={certificateInput}
+                  onChange={(e) => {
+                    console.log('Certificate input changed:', e.target.value);
+                    setCertificateInput(e.target.value);
+                    updateParam("certificate", e.target.value);
+                  }}
+                />
+              </div>
+
               {/* Status Filter */}
               <Select value={statusFilter} onValueChange={(value) => updateParam("status", value)}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-32 h-9">
                   <Filter className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="סטטוס" />
                 </SelectTrigger>
@@ -239,7 +330,7 @@ export default function DeliveriesPage() {
                     value="all"
                     className="hover:bg-transparent hover:text-foreground"
                   >
-                    כל הסטטוסים
+                    כל הסטטטוסים
                   </SelectItem>
                   <SelectItem
                     value="unassigned"
@@ -276,7 +367,7 @@ export default function DeliveriesPage() {
 
               {/* Car Filter */}
               <Select value={carFilter} onValueChange={(value) => updateParam("car", value)}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-32 h-9">
                   <CarIcon className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="רכב" />
                 </SelectTrigger>
@@ -308,7 +399,7 @@ export default function DeliveriesPage() {
 
               {/* Driver Filter */}
               <Select value={driverFilter} onValueChange={(value) => updateParam("driver", value)}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-32 h-9">
                   <User className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="נהג" />
                 </SelectTrigger>
@@ -338,9 +429,17 @@ export default function DeliveriesPage() {
                 </SelectContent>
               </Select>
 
+              {/* Clear filters button */}
+              <Button variant="outline" size="sm" className="h-9" onClick={clearFilters}>
+                נקה מסננים
+              </Button>
+            </div>
+
+            {/* Sort Controls - Right Side */}
+            <div className="flex gap-2 order-2">
               {/* Sort By */}
               <Select value={sortBy} onValueChange={(value) => updateParam("sortBy", value)}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-32 h-9">
                   <ArrowUpDown className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="מיון לפי" />
                 </SelectTrigger>
@@ -374,7 +473,7 @@ export default function DeliveriesPage() {
 
               {/* Sort Order */}
               <Select value={sortOrder} onValueChange={(value) => updateParam("sortOrder", value)}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-28 h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -395,7 +494,7 @@ export default function DeliveriesPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 overflow-auto">
+        <CardContent className="flex-1 p-4">
           <DeliveriesTable
             statusFilter={statusFilter}
             carFilter={carFilter}
@@ -403,10 +502,44 @@ export default function DeliveriesPage() {
             sortBy={sortBy}
             sortOrder={sortOrder}
             searchQuery={searchQuery}
+            certificateQuery={searchParams.get("certificate") || ""}
             dateRange={dateRange}
           />
         </CardContent>
       </Card>
+
+      {/* Problem Alert Modal */}
+      <AlertDialog open={problemAlert.show} onOpenChange={dismissProblemAlert}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-right">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              התראת בעיה במשלוח
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              {problemAlert.mission && (
+                <>
+                  משלוח #{problemAlert.mission.id} של {problemAlert.mission.metadata?.client_name || "לקוח"} עבר לסטטוס "בעיה"
+                  <br />
+                  <span className="text-sm text-muted-foreground mt-2 block">
+                    סוג: {problemAlert.mission.type}
+                    {problemAlert.mission.subtype && ` (${problemAlert.mission.subtype})`}
+                  </span>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel>סגור</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleProblemAlertAction}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              צפה בפרטים
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

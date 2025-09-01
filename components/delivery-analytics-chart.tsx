@@ -1,144 +1,172 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-
-interface Order {
-  id: number
-  client_name: string | null
-  client_phone: string | null
-  address: string
-  packages_count: number
-  driver: string | null
-  car_number: string | null
-  status: "unassigned" | "waiting" | "in_progress" | "completed" | "problem"
-  time_delivered: string | null
-  created_at: string
-  updated_at: string
-}
+import * as React from "react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Rectangle } from "recharts";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ChartData {
-  date: string
-  completed: number
-  pending: number
-}
-
-const transformOrdersToChartData = (orders: Order[]): ChartData[] => {
-  const dataMap = new Map<string, { completed: number; pending: number }>()
-
-  orders.forEach((order) => {
-    const date = new Date(order.created_at).toISOString().split("T")[0]
-    
-    if (!dataMap.has(date)) {
-      dataMap.set(date, { completed: 0, pending: 0 })
-    }
-
-    const dayData = dataMap.get(date)!
-    
-    if (order.status === "completed") {
-      dayData.completed += 1
-    } else if (["unassigned", "waiting", "in_progress"].includes(order.status)) {
-      dayData.pending += 1
-    }
-  })
-
-  return Array.from(dataMap.entries())
-    .map(([date, data]) => ({
-      date,
-      completed: data.completed,
-      pending: data.pending,
-    }))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  date: string;
+  displayDate: string;
+  completed: number;
+  waiting: number;
+  in_progress: number;
+  problem: number;
+  unassigned: number;
+  total: number;
+  activeTotal: number;
 }
 
 const chartConfig = {
-  deliveries: {
-    label: "משלוחים",
-  },
-  completed: {
-    label: "הושלמו",
-    color: "hsl(var(--primary))",
-  },
-  pending: {
-    label: "ממתינים",
-    color: "hsl(var(--muted-foreground))",
-  },
-} satisfies ChartConfig
+  deliveries: { label: "משלוחים" },
+  completed: { label: "הושלמו", color: "#3b82f6" }, // blue-500
+  waiting: { label: "ממתינים", color: "#eab308" }, // yellow-500
+  problem: { label: "בעיות", color: "#ef4444" }, // red-500
+} satisfies ChartConfig;
 
-export function DeliveryAnalyticsChart() {
-  const isMobile = useIsMobile()
-  const [timeRange, setTimeRange] = React.useState("30d")
-  const [chartData, setChartData] = React.useState<ChartData[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+// Custom shape component that adds rounded corners to the topmost visible segment
+const RoundedBar = (props: any) => {
+  const { fill, x, y, width, height, payload, dataKey } = props;
+  
+  // Check if this bar segment is the topmost one with data
+  const isTopSegment = 
+    (dataKey === "problem" && payload.problem > 0) ||
+    (dataKey === "waiting" && payload.problem === 0 && payload.waiting > 0) ||
+    (dataKey === "completed" && payload.problem === 0 && payload.waiting === 0 && payload.completed > 0);
+  
+  const radius = isTopSegment ? 4 : 0;
+  
+  return (
+    <Rectangle
+      {...props}
+      radius={[radius, radius, 0, 0]}
+    />
+  );
+};
+
+
+type DeliveryAnalyticsChartProps = {
+  startDate?: Date | null;
+  endDate?: Date | null;
+};
+
+export function DeliveryAnalyticsChart({
+  startDate,
+  endDate,
+}: DeliveryAnalyticsChartProps) {
+  const isMobile = useIsMobile();
+  const [timeRange, setTimeRange] = React.useState("30d");
+  const [chartData, setChartData] = React.useState<ChartData[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  
+  // Check if dark mode is active
+  const [isDark, setIsDark] = React.useState(false);
+  React.useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+    checkDarkMode();
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   React.useEffect(() => {
     if (isMobile) {
-      setTimeRange("7d")
+      setTimeRange("7d");
     }
-  }, [isMobile])
+  }, [isMobile]);
 
   React.useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchChartData = async () => {
       try {
-        setLoading(true)
-        setError(null)
-        const response = await fetch('/api/orders')
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch orders')
+        setLoading(true);
+        setError(null);
+
+        // Get the auth token from Supabase
+        const { getSupabaseClient } = await import("@/lib/supabase-client");
+        const supabase = getSupabaseClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.access_token) {
+          throw new Error("Not authenticated");
         }
-        
-        const result = await response.json()
-        // Handle both old array format and new paginated format
-        const orders: Order[] = Array.isArray(result) ? result : result.data || []
-        const transformedData = transformOrdersToChartData(orders)
-        setChartData(transformedData)
+
+        const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
+        const response = await fetch(`/api/analytics/chart?days=${days}`, {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to fetch chart data: ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log("Chart API Response:", result); // Debug log
+        setChartData(result.data || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch data')
+        setError(err instanceof Error ? err.message : "Failed to fetch data");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchOrders()
-  }, [])
+    fetchChartData();
+  }, [timeRange]);
 
-  const filteredData = React.useMemo(() => {
-    return chartData.filter((item) => {
-      const date = new Date(item.date)
-      const referenceDate = new Date()
-      let daysToSubtract = 30
-      if (timeRange === "90d") {
-        daysToSubtract = 90
-      } else if (timeRange === "7d") {
-        daysToSubtract = 7
-      }
-      const startDate = new Date(referenceDate)
-      startDate.setDate(startDate.getDate() - daysToSubtract)
-      return date >= startDate
-    })
-  }, [chartData, timeRange])
+  // Data is already filtered by the API based on timeRange
+  const filteredData = chartData;
 
   if (loading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="text-right">מגמות משלוחים</CardTitle>
-          <CardDescription className="text-right">טוען נתונים...</CardDescription>
+          <CardDescription className="text-right flex items-center justify-between">
+            <Skeleton className="h-4 w-32" />
+            <div className="flex gap-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          </CardDescription>
+          <div className="flex justify-end">
+            <Skeleton className="h-10 w-32" />
+          </div>
         </CardHeader>
         <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-          <div className="flex h-[250px] items-center justify-center">
-            <div className="text-muted-foreground">טוען נתונים...</div>
-          </div>
+          <Skeleton className="h-[300px] w-full" />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (error) {
@@ -146,7 +174,9 @@ export function DeliveryAnalyticsChart() {
       <Card>
         <CardHeader>
           <CardTitle className="text-right">מגמות משלוחים</CardTitle>
-          <CardDescription className="text-right">שגיאה בטעינת הנתונים</CardDescription>
+          <CardDescription className="text-right">
+            שגיאה בטעינת הנתונים
+          </CardDescription>
         </CardHeader>
         <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
           <div className="flex h-[250px] items-center justify-center">
@@ -154,21 +184,47 @@ export function DeliveryAnalyticsChart() {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-right">מגמות משלוחים</CardTitle>
-        <CardDescription className="text-right">
-          <span className="hidden sm:block">
-            משלוחים שהושלמו וממתינים ב-{timeRange === "7d" ? "7 הימים" : timeRange === "30d" ? "30 הימים" : "90 הימים"}{" "}
-            האחרונים
-          </span>
-          <span className="sm:hidden">
-            {timeRange === "7d" ? "7 ימים" : timeRange === "30d" ? "30 ימים" : "90 ימים"} אחרונים
-          </span>
+        <CardDescription className="text-right flex items-center justify-between">
+          <div>
+            <span className="hidden sm:block">
+              מגמות משלוחים ב-
+              {timeRange === "7d"
+                ? "7 הימים"
+                : timeRange === "30d"
+                  ? "30 הימים"
+                  : "90 הימים"}{" "}
+              האחרונים
+            </span>
+            <span className="sm:hidden">
+              {timeRange === "7d"
+                ? "7 ימים"
+                : timeRange === "30d"
+                  ? "30 ימים"
+                  : "90 ימים"}{" "}
+              אחרונים
+            </span>
+          </div>
+          <div className="flex gap-2 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+              <span>הושלמו</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-yellow-500 rounded-sm"></div>
+              <span>ממתינים</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
+              <span>בעיות</span>
+            </div>
+          </div>
         </CardDescription>
         <div className="flex justify-end">
           <ToggleGroup
@@ -183,7 +239,10 @@ export function DeliveryAnalyticsChart() {
             <ToggleGroupItem value="90d">90 ימים</ToggleGroupItem>
           </ToggleGroup>
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="flex w-32 sm:hidden" size="sm" aria-label="בחר טווח זמן">
+            <SelectTrigger
+              className="flex w-32 sm:hidden"
+              aria-label="בחר טווח זמן"
+            >
               <SelectValue placeholder="30 ימים" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
@@ -206,64 +265,64 @@ export function DeliveryAnalyticsChart() {
             <div className="text-muted-foreground">אין נתונים להצגה</div>
           </div>
         ) : (
-          <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
-            <AreaChart data={filteredData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="fillCompleted" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-completed)" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="var(--color-completed)" stopOpacity={0.1} />
-                </linearGradient>
-                <linearGradient id="fillPending" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-pending)" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="var(--color-pending)" stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-[300px] w-full"
+          >
+            <BarChart
+              accessibilityLayer
+              data={filteredData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis
-                dataKey="date"
+                dataKey="displayDate"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
                 minTickGap={32}
-                tickFormatter={(value) => {
-                  const date = new Date(value)
-                  return date.toLocaleDateString("he-IL", {
-                    month: "short",
-                    day: "numeric",
-                  })
-                }}
+                fontSize={12}
+                tickFormatter={(value) => value.length > 6 ? value.slice(0, 6) + '...' : value}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                fontSize={12}
               />
               <ChartTooltip
+                cursor={{ fill: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.12)" }}
                 content={
                   <ChartTooltipContent
-                    labelFormatter={(value) => {
-                      return new Date(value).toLocaleDateString("he-IL", {
-                        month: "long",
-                        day: "numeric",
-                      })
-                    }}
-                    indicator="dot"
+                    indicator="dashed"
                   />
                 }
               />
-              <Area
-                dataKey="pending"
-                type="monotone"
-                fill="url(#fillPending)"
-                stroke="var(--color-pending)"
-                stackId="a"
-              />
-              <Area
+              <Bar
                 dataKey="completed"
-                type="monotone"
-                fill="url(#fillCompleted)"
-                stroke="var(--color-completed)"
                 stackId="a"
+                fill="var(--color-completed)"
+                name="הושלמו"
+                shape={RoundedBar}
               />
-            </AreaChart>
+              <Bar
+                dataKey="waiting"
+                stackId="a"
+                fill="var(--color-waiting)"
+                name="ממתינים"
+                shape={RoundedBar}
+              />
+              <Bar
+                dataKey="problem"
+                stackId="a"
+                fill="var(--color-problem)"
+                name="בעיות"
+                shape={RoundedBar}
+              />
+            </BarChart>
           </ChartContainer>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }
