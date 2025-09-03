@@ -202,7 +202,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Mission |
         date_expected: date_expected ? new Date(date_expected).toISOString() : null,
         certificates: certificates || null,
         metadata: metadata || null,
-        status: "unassigned",
+         status: "waiting",
       })
       .select()
       .single();
