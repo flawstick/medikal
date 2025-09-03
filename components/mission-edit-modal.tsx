@@ -408,7 +408,7 @@ export function MissionEditModal({
                     <SelectItem value="משלוח">משלוח</SelectItem>
                     <SelectItem value="חשבונית">חשבונית</SelectItem>
                     <SelectItem value="מנופים">מנופים</SelectItem>
-                    <SelectItem value="מסימה">מסימה</SelectItem>
+                    <SelectItem value="משימה">משימה</SelectItem>
                     <SelectItem value="איסוף">איסוף</SelectItem>
                     <SelectItem value="ביקור">ביקור</SelectItem>
                     <SelectItem value="אחר">אחר</SelectItem>

@@ -91,26 +91,24 @@ export function DeliveriesTable({
       setLoading(true)
     }
     try {
-       // Build query parameters including offset-based group fetch
-       const params = new URLSearchParams({
-         status: statusFilter,
-         type: typeFilter,
-         car: carFilter,
-         driver: driverFilter,
-         sortBy,
-         sortOrder,
-         limit: GROUP_LIMIT.toString(),
-       })
-       console.log('=== FRONTEND DEBUG ===');
-       console.log('Search query:', searchQuery);
-       console.log('Certificate query:', certificateQuery);
-       console.log('URL params being sent:', params.toString());
-       console.log('Certificate param in URL:', params.get('certificate'));
-      // Offset depends on current group of pages
-      const offset = groupIndex * GROUP_LIMIT
-      if (offset > 0) {
-        params.set("offset", offset.toString())
-      }
+        // Build query parameters including page-based pagination
+        const params = new URLSearchParams({
+          status: statusFilter,
+          type: typeFilter,
+          car: carFilter,
+          driver: driverFilter,
+          sortBy,
+          sortOrder,
+          limit: GROUP_LIMIT.toString(),
+        })
+        console.log('=== FRONTEND DEBUG ===');
+        console.log('Search query:', searchQuery);
+        console.log('Certificate query:', certificateQuery);
+        console.log('URL params being sent:', params.toString());
+        console.log('Certificate param in URL:', params.get('certificate'));
+       // Page depends on current group of pages (API expects 1-based page numbers)
+       const page = groupIndex + 1
+       params.set("page", page.toString())
        // Include search query if any
        if (searchQuery) {
          params.append("search", searchQuery)
@@ -119,13 +117,13 @@ export function DeliveriesTable({
        if (certificateQuery) {
          params.append("certificate", certificateQuery)
        }
-      // Date range filtering
-      if (dateRange?.from) {
-        params.append("from", dateRange.from.toISOString())
-      }
-      if (dateRange?.to) {
-        params.append("to", dateRange.to.toISOString())
-      }
+       // Date range filtering
+       if (dateRange?.from) {
+         params.append("dateFrom", dateRange.from.toISOString())
+       }
+       if (dateRange?.to) {
+         params.append("dateTo", dateRange.to.toISOString())
+       }
       const response = await fetch(`/api/orders?${params}`)
       if (response.ok) {
         const result = await response.json()

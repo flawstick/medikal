@@ -54,14 +54,14 @@ export default function DeliveriesPage() {
   const sortBy = searchParams.get("sortBy") ?? "created_at";
   const sortOrder = searchParams.get("sortOrder") ?? "desc";
   const searchQuery = searchParams.get("search") ?? "";
-  const fromParam = searchParams.get("from");
-  const toParam = searchParams.get("to");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(
-    fromParam || toParam ? {
-      from: fromParam ? new Date(fromParam) : undefined,
-      to: toParam ? new Date(toParam) : undefined,
-    } : undefined
-  );
+   const fromParam = searchParams.get("dateFrom");
+   const toParam = searchParams.get("dateTo");
+   const [dateRange, setDateRange] = useState<DateRange | undefined>(
+     fromParam || toParam ? {
+       from: fromParam ? new Date(fromParam) : undefined,
+       to: toParam ? new Date(toParam) : undefined,
+     } : undefined
+   );
   const [cars, setCars] = useState<Car[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [certificateInput, setCertificateInput] = useState(searchParams.get("certificate") || "");
@@ -108,33 +108,33 @@ export default function DeliveriesPage() {
     router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
   };
 
-  // Helper to update date range in URL and state
-  const updateDateRange = (range: DateRange | undefined) => {
-    setDateRange(range); // Update state immediately
-    const params = new URLSearchParams(searchParams.toString());
-    if (range?.from) {
-      params.set("from", range.from.toISOString());
-    } else {
-      params.delete("from");
-    }
-    if (range?.to) {
-      params.set("to", range.to.toISOString());
-    } else {
-      params.delete("to");
-    }
-    const queryString = params.toString();
-    router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
-  };
-  // Clear all filters (status, car, driver, search, certificate, date range)
-  const clearFilters = () => {
-    setCertificateInput(""); // Clear certificate input
-    const params = new URLSearchParams(searchParams.toString());
-    ["status", "car", "driver", "search", "certificate", "from", "to"].forEach((key) => {
-      params.delete(key);
-    });
-    const queryString = params.toString();
-    router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
-  };
+   // Helper to update date range in URL and state
+   const updateDateRange = (range: DateRange | undefined) => {
+     setDateRange(range); // Update state immediately
+     const params = new URLSearchParams(searchParams.toString());
+     if (range?.from) {
+       params.set("dateFrom", range.from.toISOString());
+     } else {
+       params.delete("dateFrom");
+     }
+     if (range?.to) {
+       params.set("dateTo", range.to.toISOString());
+     } else {
+       params.delete("dateTo");
+     }
+     const queryString = params.toString();
+     router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
+   };
+   // Clear all filters (status, car, driver, search, certificate, date range)
+   const clearFilters = () => {
+     setCertificateInput(""); // Clear certificate input
+     const params = new URLSearchParams(searchParams.toString());
+     ["status", "car", "driver", "search", "certificate", "dateFrom", "dateTo"].forEach((key) => {
+       params.delete(key);
+     });
+     const queryString = params.toString();
+     router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
+   };
 
   // Fetch cars and drivers for filter options
   useEffect(() => {
@@ -162,12 +162,15 @@ export default function DeliveriesPage() {
     fetchFiltersData();
   }, []);
 
-  // Set up realtime subscription for problem status changes
+  // Set up realtime subscription for problem status changes with fallback polling
   useEffect(() => {
     const supabase = getSupabaseClient();
+    console.log('Setting up realtime subscription...');
+    let fallbackInterval: NodeJS.Timeout;
+    let lastCheckTime = Date.now();
 
     const channel = supabase
-      .channel('missions-problem-alerts')
+      .channel('public:missions')
       .on(
         'postgres_changes',
         {
@@ -176,16 +179,48 @@ export default function DeliveriesPage() {
           table: 'missions',
           filter: `status=eq.problem`,
         },
-        (payload) => {
-          console.log('Mission changed to problem status:', payload);
-          const mission = payload.new as Mission;
-          setProblemAlert({ show: true, mission });
-        }
+         (payload: any) => {
+           console.log('Mission changed to problem status:', payload);
+           const mission = payload.new as Mission;
+           // Only show alert if status actually changed TO problem
+           if (payload.old && payload.old.status !== 'problem' && payload.new.status === 'problem') {
+             setProblemAlert({ show: true, mission });
+           }
+         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to missions updates');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime failed, falling back to polling for problem missions');
+          
+          // Fallback: poll for new problem missions every 10 seconds
+          fallbackInterval = setInterval(async () => {
+            try {
+              const response = await fetch(`/api/orders?status=problem&updated_since=${lastCheckTime}`);
+              if (response.ok) {
+                const data = await response.json();
+                if (data.missions && data.missions.length > 0) {
+                  // Show alert for the most recent problem mission
+                  const latestProblem = data.missions[0];
+                  setProblemAlert({ show: true, mission: latestProblem });
+                }
+              }
+              lastCheckTime = Date.now();
+            } catch (error) {
+              console.error('Polling error:', error);
+            }
+          }, 10000);
+        }
+      });
 
     return () => {
+      console.log('Cleaning up realtime subscription...');
       supabase.removeChannel(channel);
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+      }
     };
   }, []);
 
@@ -198,16 +233,18 @@ export default function DeliveriesPage() {
             ניהול וצפייה בכל המשלוחים
           </p>
         </div>
-        <Button
-          size="lg"
-          asChild
-          className="transform transition-transform duration-200 hover:scale-110"
-        >
-          <Link href="/upload" className="inline-flex items-center gap-2 group">
-            <Plus className="h-5 w-5 group-hover:animate-spin" />
-            משלוח חדש
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="lg"
+            asChild
+            className="transform transition-transform duration-200 hover:scale-110"
+          >
+            <Link href="/upload" className="inline-flex items-center gap-2 group">
+              <Plus className="h-5 w-5 group-hover:animate-spin" />
+              משלוח חדש
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-sm flex flex-col">
@@ -217,17 +254,17 @@ export default function DeliveriesPage() {
               <span>כל המשלוחים</span>
               {/* Date Range Popover */}
               <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-44">
-                    <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
-                    {dateRange?.from && dateRange?.to
-                      ? `${format(dateRange.from, "P")} - ${format(
-                          dateRange.to,
-                          "P",
-                        )}`
-                      : "טווח תאריכים"}
-                  </Button>
-                </PopoverTrigger>
+                 <PopoverTrigger asChild>
+                   <Button variant="outline" size="sm" className="w-64">
+                     <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                     {dateRange?.from && dateRange?.to
+                       ? `${format(dateRange.from, "P")} - ${format(
+                           dateRange.to,
+                           "P",
+                         )}`
+                       : "טווח תאריכים"}
+                   </Button>
+                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="range"

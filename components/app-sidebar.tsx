@@ -1,11 +1,12 @@
 "use client"
 
 import type * as React from "react"
-import { Home, PackageIcon, Moon, Sun, Monitor, Users, Car } from "lucide-react"
+import { Home, PackageIcon, Moon, Sun, Monitor, Users, Car, Settings } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
+import Link from "next/link"
 import { BrandButton } from "@/components/brand-button"
 import { SidebarButton } from "@/components/sidebar-button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -49,6 +50,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter className="p-2 border-t">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <Link href="/settings" passHref>
+              <SidebarMenuButton className="justify-start text-right hover:bg-muted hover:text-foreground transition-colors">
+                <Settings className="h-4 w-4" />
+                <span>הגדרות</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

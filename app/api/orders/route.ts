@@ -58,18 +58,18 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
     if (dateFrom) {
       const fromDate = new Date(dateFrom);
       if (!isNaN(fromDate.getTime())) {
-        // Filter by created_at date >= dateFrom (start of day)
+        // Filter by date_expected date >= dateFrom (start of day)
         fromDate.setHours(0, 0, 0, 0);
-        query = query.gte("created_at", fromDate.toISOString());
+        query = query.gte("date_expected", fromDate.toISOString());
       }
     }
 
     if (dateTo) {
       const toDate = new Date(dateTo);
       if (!isNaN(toDate.getTime())) {
-        // Filter by created_at date <= dateTo (end of day)
+        // Filter by date_expected date <= dateTo (end of day)
         toDate.setHours(23, 59, 59, 999);
-        query = query.lte("created_at", toDate.toISOString());
+        query = query.lte("date_expected", toDate.toISOString());
       }
     }
 

@@ -8,6 +8,7 @@ import {
   varchar,
   boolean,
   bigint,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 export const missions = pgTable(
@@ -75,6 +76,24 @@ export const accounts = pgTable(
   }),
 );
 
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey(), // References auth.users(id)
+    user_role: text("user_role", {
+      enum: ["admin", "manager", "operator"],
+    })
+      .notNull()
+      .default("operator"),
+    display_name: text("display_name"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    roleIdx: index("idx_users_role").on(table.user_role),
+  }),
+);
+
 export const drivers = pgTable(
   "drivers",
   {
@@ -119,6 +138,30 @@ export const cars = pgTable(
   }),
 );
 
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    user_id: uuid("user_id").notNull(), // References auth.users(id)
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    type: text("type", {
+      enum: ["info", "success", "warning", "error"],
+    })
+      .notNull()
+      .default("info"),
+    is_read: boolean("is_read").notNull().default(false),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("idx_notifications_user_id").on(table.user_id),
+    isReadIdx: index("idx_notifications_is_read").on(table.is_read),
+    createdAtIdx: index("idx_notifications_created_at").on(table.created_at),
+    userIdIsReadIdx: index("idx_notifications_user_id_is_read").on(table.user_id, table.is_read),
+  }),
+);
+
 export type Mission = typeof missions.$inferSelect;
 export type NewMission = typeof missions.$inferInsert;
 export type Driver = typeof drivers.$inferSelect;
@@ -127,3 +170,7 @@ export type Car = typeof cars.$inferSelect;
 export type NewCar = typeof cars.$inferInsert;
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
