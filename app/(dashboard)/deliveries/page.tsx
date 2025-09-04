@@ -210,25 +210,7 @@ export default function DeliveriesPage() {
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to missions updates');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('Realtime failed, falling back to polling for problem missions');
-          
-          // Fallback: poll for new problem missions every 10 seconds
-          fallbackInterval = setInterval(async () => {
-            try {
-              const response = await fetch(`/api/orders?status=problem&updated_since=${lastCheckTime}`);
-              if (response.ok) {
-                const data = await response.json();
-                if (data.missions && data.missions.length > 0) {
-                  // Show alert for the most recent problem mission
-                  const latestProblem = data.missions[0];
-                  setProblemAlert({ show: true, mission: latestProblem });
-                }
-              }
-              lastCheckTime = Date.now();
-            } catch (error) {
-              console.error('Polling error:', error);
-            }
-          }, 10000);
+          console.warn('Realtime failed - no fallback polling');
         }
       });
 
