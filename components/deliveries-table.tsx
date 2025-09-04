@@ -201,11 +201,6 @@ export function DeliveriesTable({
     certificateQuery,
     groupIndex,
   ]);
-  // Poll for updates every 15 seconds for the current group
-  useEffect(() => {
-    const interval = setInterval(() => fetchGroupData(true), 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Fetch a batch of pages (group) from server
   const fetchGroupData = async (isPollingUpdate = false) => {
