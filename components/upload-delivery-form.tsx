@@ -419,11 +419,11 @@ export function UploadDeliveryForm() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2 md:order-2">
+                      <div className="space-y-2 md:order-1">
                         <Label htmlFor="client_name" className="text-right block">שם לקוח (אופציונלי)</Label>
                         <Input id="client_name" value={formData.metadata.client_name} onChange={(e) => setFormData((prev) => ({ ...prev, metadata: { ...prev.metadata, client_name: e.target.value } }))} placeholder="שם הלקוח" className="text-right" />
                       </div>
-                      <div className="space-y-2 md:order-1">
+                      <div className="space-y-2 md:order-2">
                         <Label htmlFor="phone_number" className="text-right block">מספר טלפון (אופציונלי)</Label>
                         <Input id="phone_number" value={formData.metadata.phone_number} onChange={(e) => setFormData((prev) => ({ ...prev, metadata: { ...prev.metadata, phone_number: e.target.value } }))} placeholder="מספר טלפון ליצירת קשר" className="text-right" />
                       </div>

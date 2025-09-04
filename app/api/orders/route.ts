@@ -50,7 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
     if (search && search.trim()) {
       const searchTerm = search.trim();
       query = query.or(
-        `driver.ilike.%${searchTerm}%,type.ilike.%${searchTerm}%,car_number.ilike.%${searchTerm}%,address->>address.ilike.%${searchTerm}%,address->>city.ilike.%${searchTerm}%`
+        `driver.ilike.%${searchTerm}%,type.ilike.%${searchTerm}%,car_number.ilike.%${searchTerm}%,address->>address.ilike.%${searchTerm}%,address->>city.ilike.%${searchTerm}%,metadata->>client_name.ilike.%${searchTerm}%`
       );
     }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -96,7 +96,18 @@ export default function MissionDetailPage({
 }) {
   const resolvedParams = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mission, setMission] = useState<Mission | null>(null);
+
+  // Build back URL with preserved search params
+  const getBackUrl = () => {
+    const returnTo = searchParams.get('returnTo');
+    if (returnTo) {
+      return decodeURIComponent(returnTo);
+    }
+    // Fallback to deliveries page
+    return '/deliveries';
+  };
   const R2_PUBLIC_URL =
     process.env.NEXT_PUBLIC_R2_PUBLIC_URL ||
     "https://pub-935a9967c0664658862019699749d4f6.r2.dev";
@@ -271,7 +282,7 @@ export default function MissionDetailPage({
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button variant="outline" onClick={() => router.push(getBackUrl())}>
             <ArrowRight className="ml-2 h-4 w-4" />
             חזרה למשימות
           </Button>
@@ -339,7 +350,7 @@ export default function MissionDetailPage({
             {mission.subtype && ` - ${mission.subtype}`}
           </p>
         </div>
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => router.push(getBackUrl())}>
           <ArrowRight className="ml-2 h-4 w-4" />
           חזרה למשימות
         </Button>

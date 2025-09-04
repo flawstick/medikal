@@ -1,7 +1,7 @@
 "use client"
 import type { DateRange } from "react-day-picker"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,8 @@ interface DeliveriesTableProps {
   searchQuery?: string
   certificateQuery?: string
   dateRange?: DateRange
+  initialPage?: number
+  onPageChange?: (page: number) => void
 }
 
 export function DeliveriesTable({
@@ -50,24 +52,87 @@ export function DeliveriesTable({
   searchQuery = "",
   certificateQuery = "",
   dateRange,
+  initialPage = 1,
+  onPageChange,
 }: DeliveriesTableProps) {
   const router = useRouter()
   // Cached group of pages data and total count
   const [groupData, setGroupData] = useState<Mission[]>([])
   const [loading, setLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage, setCurrentPage] = useState(initialPage)
   // Which group of pages (0 = pages 1-10, 1 = 11-20, etc.)
-  const [groupIndex, setGroupIndex] = useState(0)
+  const [groupIndex, setGroupIndex] = useState(Math.floor((initialPage - 1) / PAGE_GROUP_SIZE))
   // Total items across all pages
   const [totalItems, setTotalItems] = useState(0)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [missionToUpdate, setMissionToUpdate] = useState<Mission | null>(null)
   const [newStatus, setNewStatus] = useState<string>("")
-  // Reset to first page group/page on filters/search/sort/date change
+  const isInitialRender = useRef(true)
+  const prevFilters = useRef({
+    statusFilter,
+    typeFilter,
+    carFilter,
+    driverFilter,
+    sortBy,
+    sortOrder,
+    searchQuery,
+    dateRange
+  })
+
+  // Sync currentPage with initialPage prop
   useEffect(() => {
-    setGroupIndex(0)
-    setCurrentPage(1)
+    setCurrentPage(initialPage)
+    setGroupIndex(Math.floor((initialPage - 1) / PAGE_GROUP_SIZE))
+  }, [initialPage])
+
+  // Reset to first page group/page on filters/search/sort/date change (but not on initial load or navigation back)
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false
+      prevFilters.current = {
+        statusFilter,
+        typeFilter,
+        carFilter,
+        driverFilter,
+        sortBy,
+        sortOrder,
+        searchQuery,
+        dateRange
+      }
+      return
+    }
+    
+    // Check if any filter actually changed
+    const prev = prevFilters.current
+    const filtersChanged = 
+      prev.statusFilter !== statusFilter ||
+      prev.typeFilter !== typeFilter ||
+      prev.carFilter !== carFilter ||
+      prev.driverFilter !== driverFilter ||
+      prev.sortBy !== sortBy ||
+      prev.sortOrder !== sortOrder ||
+      prev.searchQuery !== searchQuery ||
+      prev.dateRange !== dateRange
+
+    // Update the ref with current values
+    prevFilters.current = {
+      statusFilter,
+      typeFilter,
+      carFilter,
+      driverFilter,
+      sortBy,
+      sortOrder,
+      searchQuery,
+      dateRange
+    }
+    
+    // Only reset page when filters actually changed
+    if (filtersChanged) {
+      setGroupIndex(0)
+      setCurrentPage(1)
+      if (onPageChange) onPageChange(1)
+    }
   }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery, dateRange])
 
   // Fetch the current group of pages when filters, search, sort, or groupIndex change
@@ -80,9 +145,6 @@ export function DeliveriesTable({
       return () => clearInterval(interval)
     }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, certificateQuery, groupIndex])
 
-   useEffect(() => {
-     setCurrentPage(1) // Reset to first page when filters change
-   }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, searchQuery, certificateQuery, dateRange])
 
   // Fetch a batch of pages (group) from server
   const fetchGroupData = async (isPollingUpdate = false) => {
@@ -161,6 +223,7 @@ export function DeliveriesTable({
         setGroupIndex(groupIndex - 1)
       }
       setCurrentPage(newPage)
+      onPageChange?.(newPage)
     }
   }
 
@@ -173,6 +236,7 @@ export function DeliveriesTable({
         setGroupIndex(groupIndex + 1)
       }
       setCurrentPage(newPage)
+      onPageChange?.(newPage)
     }
   }
 
@@ -222,8 +286,18 @@ export function DeliveriesTable({
     }
   }
 
+  const getMissionUrl = (missionId: number) => {
+    // Build returnTo URL with current search params
+    if (typeof window !== 'undefined') {
+      const currentUrl = window.location.href;
+      const returnTo = encodeURIComponent(currentUrl.replace(window.location.origin, ''));
+      return `/deliveries/${missionId}?returnTo=${returnTo}`;
+    }
+    return `/deliveries/${missionId}`;
+  };
+
   const handleViewDetails = (mission: Mission) => {
-    router.push(`/deliveries/${mission.id}`)
+    router.push(getMissionUrl(mission.id))
   }
 
   return (
@@ -304,7 +378,7 @@ export function DeliveriesTable({
                  <TableCell className="text-right font-semibold h-16 text-base">
                    <HoverCard openDelay={0}>
                      <HoverCardTrigger asChild>
-                       <Link href={`/deliveries/${mission.id}`}>
+                       <Link href={getMissionUrl(mission.id)}>
                          <span className="truncate max-w-40 cursor-pointer hover:underline decoration-2 underline-offset-2 transition-all inline-block">
                            {mission.metadata?.client_name || "לא צוין"}
                          </span>

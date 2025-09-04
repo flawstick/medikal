@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
@@ -54,6 +54,7 @@ export default function DeliveriesPage() {
   const sortBy = searchParams.get("sortBy") ?? "created_at";
   const sortOrder = searchParams.get("sortOrder") ?? "desc";
   const searchQuery = searchParams.get("search") ?? "";
+  const currentPageParam = parseInt(searchParams.get("page") || "1");
    const fromParam = searchParams.get("dateFrom");
    const toParam = searchParams.get("dateTo");
    const [dateRange, setDateRange] = useState<DateRange | undefined>(
@@ -104,9 +105,25 @@ export default function DeliveriesPage() {
     } else {
       params.set(key, value);
     }
+    // Reset page when changing filters
+    if (key !== "page") {
+      params.delete("page");
+    }
     const queryString = params.toString();
     router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
   };
+
+  // Helper to update page parameter
+  const updatePage = useCallback((page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (page <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", page.toString());
+    }
+    const queryString = params.toString();
+    router.push(`/deliveries${queryString ? `?${queryString}` : ""}`);
+  }, [searchParams, router]);
 
    // Helper to update date range in URL and state
    const updateDateRange = (range: DateRange | undefined) => {
@@ -541,6 +558,8 @@ export default function DeliveriesPage() {
             searchQuery={searchQuery}
             certificateQuery={searchParams.get("certificate") || ""}
             dateRange={dateRange}
+            initialPage={currentPageParam}
+            onPageChange={updatePage}
           />
         </CardContent>
       </Card>
