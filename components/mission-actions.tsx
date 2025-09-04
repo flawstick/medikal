@@ -72,9 +72,12 @@ export function MissionActions({
   }
 
   const handleEditSuccess = () => {
+    console.log('Edit success callback triggered, calling onUpdate...');
     setEditDialogOpen(false)
     if (onUpdate) {
       onUpdate()
+    } else {
+      console.log('No onUpdate callback provided to MissionActions');
     }
   }
 

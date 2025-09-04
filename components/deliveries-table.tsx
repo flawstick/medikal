@@ -48,6 +48,7 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Mission } from "@/lib/types";
+import { useMissionsRealtime } from "@/lib/realtime-missions";
 import {
   TableLoadingSkeleton,
   LoadingSpinner,
@@ -202,6 +203,15 @@ export function DeliveriesTable({
     groupIndex,
   ]);
 
+  // 30-second polling as realtime fallback
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchGroupData(true);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Fetch a batch of pages (group) from server
   const fetchGroupData = async (isPollingUpdate = false) => {
     // Only show loading state for initial loads, not polling updates
@@ -219,11 +229,6 @@ export function DeliveriesTable({
         sortOrder,
         limit: GROUP_LIMIT.toString(),
       });
-      console.log("=== FRONTEND DEBUG ===");
-      console.log("Search query:", searchQuery);
-      console.log("Certificate query:", certificateQuery);
-      console.log("URL params being sent:", params.toString());
-      console.log("Certificate param in URL:", params.get("certificate"));
       // Page depends on current group of pages (API expects 1-based page numbers)
       const page = groupIndex + 1;
       params.set("page", page.toString());
@@ -255,7 +260,7 @@ export function DeliveriesTable({
         }
       }
     } catch (error) {
-      console.error("Error fetching missions:", error);
+      // Silent error handling
     } finally {
       setLoading(false);
     }
@@ -335,11 +340,13 @@ export function DeliveriesTable({
         setStatusDialogOpen(false);
         setMissionToUpdate(null);
         setNewStatus("");
+        // Refresh data to ensure consistency
+        await fetchGroupData(false);
       } else {
-        console.error("Failed to update mission status");
+        // Silent error handling
       }
     } catch (error) {
-      console.error("Error updating mission status:", error);
+      // Silent error handling
     } finally {
       setIsUpdating(false);
     }
@@ -617,7 +624,9 @@ export function DeliveriesTable({
                         </DropdownMenuItem>
                         <MissionActions
                           mission={mission}
-                          onUpdate={fetchGroupData}
+                          onUpdate={() => {
+                            fetchGroupData(false);
+                          }}
                           onDelete={() =>
                             setGroupData((data) =>
                               data.filter((m) => m.id !== mission.id),

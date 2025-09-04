@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, RefreshCw } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
@@ -83,6 +83,13 @@ export default function DeliveriesPage() {
     show: boolean;
     mission: Mission | null;
   }>({ show: false, mission: null });
+  
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const handleRefresh = () => {
+    setRefreshing(true);
+    window.location.reload();
+  };
 
   const handleProblemAlertAction = () => {
     if (problemAlert.mission) {
@@ -179,49 +186,50 @@ export default function DeliveriesPage() {
     fetchFiltersData();
   }, []);
 
+  // TODO: Re-enable realtime when WebSocket connectivity is resolved
   // Set up realtime subscription for problem status changes with fallback polling
-  useEffect(() => {
-    const supabase = getSupabaseClient();
-    console.log('Setting up realtime subscription...');
-    let fallbackInterval: NodeJS.Timeout;
-    let lastCheckTime = Date.now();
+  // useEffect(() => {
+  //   const supabase = getSupabaseClient();
+  //   console.log('Setting up realtime subscription...');
+  //   let fallbackInterval: NodeJS.Timeout;
+  //   let lastCheckTime = Date.now();
 
-    const channel = supabase
-      .channel('public:missions')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'missions',
-          filter: `status=eq.problem`,
-        },
-         (payload: any) => {
-           console.log('Mission changed to problem status:', payload);
-           const mission = payload.new as Mission;
-           // Only show alert if status actually changed TO problem
-           if (payload.old && payload.old.status !== 'problem' && payload.new.status === 'problem') {
-             setProblemAlert({ show: true, mission });
-           }
-         }
-      )
-      .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to missions updates');
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('Realtime failed - no fallback polling');
-        }
-      });
+  //   const channel = supabase
+  //     .channel('public:missions')
+  //     .on(
+  //       'postgres_changes',
+  //       {
+  //         event: 'UPDATE',
+  //         schema: 'public',
+  //         table: 'missions',
+  //         filter: `status=eq.problem`,
+  //       },
+  //        (payload: any) => {
+  //          console.log('Mission changed to problem status:', payload);
+  //          const mission = payload.new as Mission;
+  //          // Only show alert if status actually changed TO problem
+  //          if (payload.old && payload.old.status !== 'problem' && payload.new.status === 'problem') {
+  //            setProblemAlert({ show: true, mission });
+  //          }
+  //        }
+  //     )
+  //     .subscribe((status) => {
+  //       console.log('Realtime subscription status:', status);
+  //       if (status === 'SUBSCRIBED') {
+  //         console.log('Successfully subscribed to missions updates');
+  //       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+  //         console.warn('Realtime failed - no fallback polling');
+  //       }
+  //     });
 
-    return () => {
-      console.log('Cleaning up realtime subscription...');
-      supabase.removeChannel(channel);
-      if (fallbackInterval) {
-        clearInterval(fallbackInterval);
-      }
-    };
-  }, []);
+  //   return () => {
+  //     console.log('Cleaning up realtime subscription...');
+  //     supabase.removeChannel(channel);
+  //     if (fallbackInterval) {
+  //       clearInterval(fallbackInterval);
+  //     }
+  //   };
+  // }, []);
 
   return (
     <div className="space-y-1 h-screen flex flex-col">
@@ -250,7 +258,18 @@ export default function DeliveriesPage() {
         <CardHeader className="space-y-3 pb-3 px-4">
           <div className="flex items-center justify-between">
             <CardTitle className="flex flex-row items-center justify-between text-right text-xl w-full">
-              <span>כל המשלוחים</span>
+              <div className="flex items-center gap-2">
+                <span>כל המשלוחים</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="h-8 w-8 p-0"
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
               {/* Date Range Popover */}
               <Popover>
                  <PopoverTrigger asChild>
