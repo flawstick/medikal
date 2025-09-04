@@ -48,7 +48,6 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Mission } from "@/lib/types";
-import { useMissionsRealtime } from "@/lib/realtime-missions";
 import {
   TableLoadingSkeleton,
   LoadingSpinner,
