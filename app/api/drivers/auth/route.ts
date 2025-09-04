@@ -64,7 +64,6 @@ export async function POST(request: NextRequest) {
         is_active: driverData.is_active,
       },
       JWT_SECRET,
-      { expiresIn: "24h" },
     );
 
     return NextResponse.json({
