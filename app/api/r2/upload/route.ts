@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       ContentType: contentType || "application/octet-stream",
     });
     // URL expires in 15 minutes
-    const url = await getSignedUrl(s3, command, { expiresIn: 900 });
+    const url = await getSignedUrl(s3 as any, command, { expiresIn: 900 });
     return NextResponse.json({ url, key });
   } catch (err) {
     console.error("Error generating R2 upload URL:", err);
