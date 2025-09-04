@@ -2,12 +2,13 @@
 
 # dependencies
 /node_modules
+.crush/
+.claude/
+.git/
 
 # next.js
 /.next/
 /.git/
-/.crush/
-/.claude/
 /out/
 
 # production
