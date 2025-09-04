@@ -2,9 +2,39 @@ import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/server/db"
 import type { CreateMissionRequest, Mission, APIResponse, PaginatedResponse } from "@/lib/types"
 import { validateMission } from "@/lib/validation"
+import { createSupabaseReqResClient } from "@/lib/supabase-server"
+import rateLimit from "next-rate-limit"
+
+// Rate limiter: 60 requests per minute per IP
+const limiter = rateLimit({
+  interval: 60 * 1000, // 60 seconds
+  uniqueTokenPerInterval: 500, // Max 500 unique IPs per interval
+})
 
 export async function GET(request: NextRequest): Promise<NextResponse<PaginatedResponse<Mission> | APIResponse>> {
   try {
+    // Apply rate limiting
+    const headers = limiter.checkNext(request, 60); // 60 requests per user per minute
+    
+    // Check for rate limiting
+    if (headers.get('X-RateLimit-Remaining') === '0') {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        { status: 429, headers }
+      );
+    }
+
+    // Check Supabase authentication
+    const supabase = createSupabaseReqResClient(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
 
     // Get query parameters
@@ -162,6 +192,28 @@ export async function GET(request: NextRequest): Promise<NextResponse<PaginatedR
 
 export async function POST(request: NextRequest): Promise<NextResponse<Mission | APIResponse>> {
   try {
+    // Apply rate limiting
+    const headers = limiter.checkNext(request, 60); // 60 requests per user per minute
+    
+    // Check for rate limiting
+    if (headers.get('X-RateLimit-Remaining') === '0') {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        { status: 429, headers }
+      );
+    }
+
+    // Check Supabase authentication
+    const supabase = createSupabaseReqResClient(request);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
     const body: CreateMissionRequest = await request.json()
     
     // Validate the request body

@@ -67,6 +67,7 @@
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "next-auth": "^4.24.11",
+    "next-rate-limit": "^0.0.3",
     "next-themes": "latest",
     "postgres": "^3.4.7",
     "react": "^19",
