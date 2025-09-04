@@ -143,7 +143,7 @@ export function DeliveriesTable({
     useEffect(() => {
       const interval = setInterval(() => fetchGroupData(true), 15000)
       return () => clearInterval(interval)
-    }, [statusFilter, typeFilter, carFilter, driverFilter, sortBy, sortOrder, dateRange, searchQuery, certificateQuery, groupIndex])
+    }, [])
 
 
   // Fetch a batch of pages (group) from server
