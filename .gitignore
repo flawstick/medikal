@@ -6,6 +6,8 @@
 # next.js
 /.next/
 /.git/
+/.crush/
+/.claude/
 /out/
 
 # production
