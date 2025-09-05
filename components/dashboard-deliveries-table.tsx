@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import type { Mission, MissionStatus } from "@/lib/types"
+import { useOrders } from "@/lib/useOrders"
 
 const DASHBOARD_ITEMS_LIMIT = 5
 
@@ -116,34 +117,13 @@ function TableSkeleton() {
 
 export function DashboardDeliveriesTable() {
   const router = useRouter()
-  const [missions, setMissions] = useState<Mission[]>([])
-  const [loading, setLoading] = useState(true)
+  const { orders, loading, refresh } = useOrders()
+  const missions = useMemo(() => orders.slice(0, DASHBOARD_ITEMS_LIMIT), [orders])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [missionToDelete, setMissionToDelete] = useState<Mission | null>(null)
   const [missionToUpdate, setMissionToUpdate] = useState<Mission | null>(null)
   const [newStatus, setNewStatus] = useState("")
-
-  useEffect(() => {
-    fetchMissions()
-  }, [])
-
-  const fetchMissions = async () => {
-    try {
-      const response = await fetch("/api/orders")
-      if (response.ok) {
-        const result = await response.json()
-        // Handle both old array format and new paginated format
-        const data = Array.isArray(result) ? result : result.data || []
-        // Show only the most recent missions for dashboard
-        setMissions(data.slice(0, DASHBOARD_ITEMS_LIMIT))
-      }
-    } catch (error) {
-      console.error("Error fetching missions:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleDeleteClick = (mission: Mission) => {
     setMissionToDelete(mission)
@@ -159,7 +139,7 @@ export function DashboardDeliveriesTable() {
       })
 
       if (response.ok) {
-        setMissions(missions => missions.filter(mission => mission.id !== missionToDelete.id))
+        await refresh()
         setDeleteDialogOpen(false)
         setMissionToDelete(null)
       } else {
@@ -188,17 +168,14 @@ export function DashboardDeliveriesTable() {
         body: JSON.stringify({
           ...missionToUpdate,
           status: newStatus,
-          completed_at: newStatus === 'completed' && !missionToUpdate.completed_at 
-            ? new Date().toISOString() 
+          completed_at: newStatus === 'completed' && !missionToUpdate.completed_at
+            ? new Date().toISOString()
             : missionToUpdate.completed_at,
         }),
       })
 
       if (response.ok) {
-        const updatedMission = await response.json()
-        setMissions(missions => missions.map(mission => 
-          mission.id === missionToUpdate.id ? updatedMission : mission
-        ))
+        await refresh()
         setStatusDialogOpen(false)
         setMissionToUpdate(null)
         setNewStatus("")

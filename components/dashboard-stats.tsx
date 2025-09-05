@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Package, Truck, CheckCircle, Clock, TrendingUp, AlertTriangle, Timer, Users } from "lucide-react"
 import type { Mission } from "@/lib/types"
+import { useOrders } from "@/lib/useOrders"
 
 interface AnalyticsData {
   todayCompletions: number
@@ -84,28 +85,7 @@ function StatsSkeleton() {
 }
 
 export const DashboardStats = React.memo(function DashboardStats() {
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  const fetchAnalytics = useMemo(() => async () => {
-    try {
-      const response = await fetch("/api/orders")
-      if (response.ok) {
-        const data = await response.json()
-        const missions: Mission[] = Array.isArray(data) ? data : data.data || []
-        const analyticsData = calculateAnalytics(missions)
-        setAnalytics(analyticsData)
-      }
-    } catch (error) {
-      console.error("Error fetching analytics:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchAnalytics()
-  }, [fetchAnalytics])
+  const { orders, loading } = useOrders()
 
   const calculateAnalytics = useMemo(() => (missions: Mission[]): AnalyticsData => {
     const today = new Date()
@@ -179,12 +159,10 @@ export const DashboardStats = React.memo(function DashboardStats() {
     }
   }, [])
 
+  const analytics = useMemo(() => calculateAnalytics(orders), [orders, calculateAnalytics])
+
   if (loading) {
     return <StatsSkeleton />
-  }
-
-  if (!analytics) {
-    return <div>שגיאה בטעינת הנתונים</div>
   }
 
   const stats = [
