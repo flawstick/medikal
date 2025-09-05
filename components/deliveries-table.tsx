@@ -188,7 +188,11 @@ export function DeliveriesTable({
 
   // Fetch the current group of pages when filters, search, sort, or groupIndex change
   useEffect(() => {
-    fetchGroupData();
+    const timeoutId = setTimeout(() => {
+      fetchGroupData();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
   }, [
     statusFilter,
     typeFilter,
