@@ -339,40 +339,38 @@ export default function MissionDetailPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="text-right">
-          <h1 className="text-3xl font-bold tracking-tight">
-            פרטי משימה #{mission.id}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {mission.type}
-            {mission.subtype && ` - ${mission.subtype}`}
-          </p>
+      <div className="sticky top-0 z-10 -mt-6 -mb-2">
+        <div className="absolute inset-x-0 top-0 h-[116px] -z-10">
+          <div className="w-full h-full bg-gradient-to-b from-background/80 to-background/40 backdrop-blur supports-[backdrop-filter]:backdrop-blur border-b border-border/60" />
         </div>
-        <Button variant="outline" onClick={() => router.push(getBackUrl())}>
-          <ArrowRight className="ml-2 h-4 w-4" />
-          חזרה למשימות
-        </Button>
-      </div>
-
-      {/* Status and Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Badge className={`${getStatusColor(mission.status)} px-3 py-1`}>
-            {getStatusText(mission.status)}
-          </Badge>
-          {deliveredDate && (
-            <div className="text-sm text-muted-foreground">
-              הושלם ב-{deliveredDate.date} בשעה {deliveredDate.time}
+        <div className="-mx-[calc(theme(spacing.8))] px-[calc(theme(spacing.8))] pt-4 pb-3">
+          <div className="flex items-start justify-between">
+            <div className="text-right">
+              <h1 className="text-3xl font-extrabold tracking-tight">פרטי משימה #{mission.id}</h1>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {mission.type}
+                {mission.subtype && ` - ${mission.subtype}`}
+              </p>
             </div>
-          )}
+            <Button variant="outline" onClick={() => router.push(getBackUrl())} className="rounded-full">
+              <ArrowRight className="ml-2 h-4 w-4" />
+              חזרה למשימות
+            </Button>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Badge className={`${getStatusColor(mission.status)} px-3 py-1 rounded-full`}>
+                {getStatusText(mission.status)}
+              </Badge>
+              {deliveredDate && (
+                <div className="text-sm text-muted-foreground">
+                  הושלם ב-{deliveredDate.date} בשעה {deliveredDate.time}
+                </div>
+              )}
+            </div>
+            <MissionActions mission={mission} onUpdate={fetchMission} showLabels={true} />
+          </div>
         </div>
-        <MissionActions
-          mission={mission}
-          onUpdate={fetchMission}
-          showLabels={true}
-        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -400,7 +398,7 @@ export default function MissionDetailPage({
                   {mission.metadata?.phone_number ? (
                     <a
                       href={`tel:${mission.metadata.phone_number}`}
-                      className="text-blue-600 hover:underline"
+                      className="inline-flex items-center gap-2 rounded-full px-2 py-1 bg-emerald-50/60 text-emerald-700 hover:text-emerald-800 transition-colors dark:bg-emerald-900/30"
                     >
                       {mission.metadata.phone_number}
                     </a>
@@ -418,10 +416,10 @@ export default function MissionDetailPage({
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors rounded-full px-2 py-1 bg-blue-50/60 dark:bg-blue-900/30"
                   >
                     {mission.address.address}
-                    <br />
+                    <span>•</span>
                     {mission.address.city} {mission.address.zip_code}
                   </a>
                 </span>
@@ -578,74 +576,73 @@ export default function MissionDetailPage({
 
         {/* Package Images */}
         {packageImages.length > 0 && (
-          <div className="space-y-2 text-right">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-right flex items-center gap-2">
                 <Package className="h-5 w-5" />
-                <span className="text-lg font-medium">
-                  תמונות חבילות ({packageImages.length})
-                </span>
+                תמונות חבילות ({packageImages.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {packageImages.map((url, idx) => (
+                  <div
+                    key={idx}
+                    className="w-24 h-24 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => openLightbox(packageImages, idx)}
+                  >
+                    <img
+                      src={url}
+                      alt={`חבילת תמונה ${idx + 1}`}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {packageImages.map((url, idx) => (
-                <div
-                  key={idx}
-                  className="w-24 h-24 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => openLightbox(packageImages, idx)}
-                >
-                  <img
-                    src={url}
-                    alt={`חבילת תמונה ${idx + 1}`}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
-        {/* Certificate Images */}
         {certificateImages.length > 0 && (
-          <div className="space-y-2 text-right mt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-right flex items-center gap-2">
                 <Clipboard className="h-5 w-5" />
-                <span className="text-lg font-medium">
-                  תמונות תעודות ({certificateImages.length})
-                </span>
+                תמונות תעודות ({certificateImages.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {certificateImages.map((img, idx) => (
+                  <div
+                    key={idx}
+                    className="relative w-24 h-24 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() =>
+                      openLightbox(
+                        certificateImages.map((i) => i.url),
+                        idx,
+                      )
+                    }
+                  >
+                    <img
+                      src={img.url}
+                      alt={`תעודת תמונה ${idx + 1}`}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                    {img.number && (
+                      <div className="absolute bottom-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded-tl-lg">
+                        {img.number}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {certificateImages.map((img, idx) => (
-                <div
-                  key={idx}
-                  className="relative w-24 h-24 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() =>
-                    openLightbox(
-                      certificateImages.map((i) => i.url),
-                      idx,
-                    )
-                  }
-                >
-                  <img
-                    src={img.url}
-                    alt={`תעודת תמונה ${idx + 1}`}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                  {img.number && (
-                    <div className="absolute bottom-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded-tl-lg">
-                      {img.number}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Timeline */}
         <Card className="lg:col-span-2">
-          <CardHeader>
+          <CardHeader className="border-b">
             <CardTitle className="text-right flex items-center gap-2">
               <Clock className="h-5 w-5" />
               ציר זמן
