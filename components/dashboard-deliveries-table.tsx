@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import type { Mission, MissionStatus } from "@/lib/types"
-import { useOrders } from "@/lib/useOrders"
 
 const DASHBOARD_ITEMS_LIMIT = 5
 
@@ -117,13 +116,59 @@ function TableSkeleton() {
 
 export function DashboardDeliveriesTable() {
   const router = useRouter()
-  const { orders, loading, refresh } = useOrders()
-  const missions = useMemo(() => orders.slice(0, DASHBOARD_ITEMS_LIMIT), [orders])
+  const [missions, setMissions] = useState<Mission[]>([])
+  const [loading, setLoading] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [missionToDelete, setMissionToDelete] = useState<Mission | null>(null)
   const [missionToUpdate, setMissionToUpdate] = useState<Mission | null>(null)
   const [newStatus, setNewStatus] = useState("")
+
+  // Fetch latest orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const params = new URLSearchParams({
+          sortBy: "created_at",
+          sortOrder: "desc",
+          limit: DASHBOARD_ITEMS_LIMIT.toString(),
+        })
+        const response = await fetch(`/api/orders?${params}`)
+        if (response.ok) {
+          const result = await response.json()
+          const data = Array.isArray(result) ? result : result.data || []
+          setMissions(data.slice(0, DASHBOARD_ITEMS_LIMIT))
+        }
+      } catch (error) {
+        // Silent error handling
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchOrders()
+  }, [])
+
+  const refresh = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({
+        sortBy: "created_at",
+        sortOrder: "desc", 
+        limit: DASHBOARD_ITEMS_LIMIT.toString(),
+      })
+      const response = await fetch(`/api/orders?${params}`)
+      if (response.ok) {
+        const result = await response.json()
+        const data = Array.isArray(result) ? result : result.data || []
+        setMissions(data.slice(0, DASHBOARD_ITEMS_LIMIT))
+      }
+    } catch (error) {
+      // Silent error handling
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleDeleteClick = (mission: Mission) => {
     setMissionToDelete(mission)
@@ -142,11 +187,9 @@ export function DashboardDeliveriesTable() {
         await refresh()
         setDeleteDialogOpen(false)
         setMissionToDelete(null)
-      } else {
-        console.error('Failed to delete mission')
       }
     } catch (error) {
-      console.error('Error deleting mission:', error)
+      // Silent error handling
     }
   }
 
@@ -179,11 +222,9 @@ export function DashboardDeliveriesTable() {
         setStatusDialogOpen(false)
         setMissionToUpdate(null)
         setNewStatus("")
-      } else {
-        console.error('Failed to update mission status')
       }
     } catch (error) {
-      console.error('Error updating mission status:', error)
+      // Silent error handling
     }
   }
 
@@ -336,7 +377,16 @@ export function DashboardDeliveriesTable() {
               </TableRow>
             ))}
             {/* Fill empty rows to maintain consistent height */}
-            {missions.length < DASHBOARD_ITEMS_LIMIT &&
+            {missions.length === 0 && !loading && (
+              <TableRow>
+                <TableCell className="h-32 text-center" colSpan={7}>
+                  <div className="text-muted-foreground">
+                    אין משלוחים להציג
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+            {missions.length < DASHBOARD_ITEMS_LIMIT && missions.length > 0 &&
               Array.from({ length: DASHBOARD_ITEMS_LIMIT - missions.length }).map((_, index) => (
                 <TableRow key={`empty-${index}`} className="h-16">
                   <TableCell className="h-16" colSpan={7}>

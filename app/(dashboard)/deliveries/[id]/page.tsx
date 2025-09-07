@@ -101,12 +101,12 @@ export default function MissionDetailPage({
 
   // Build back URL with preserved search params
   const getBackUrl = () => {
-    const returnTo = searchParams.get('returnTo');
+    const returnTo = searchParams.get("returnTo");
     if (returnTo) {
       return decodeURIComponent(returnTo);
     }
     // Fallback to deliveries page
-    return '/deliveries';
+    return "/deliveries";
   };
   const R2_PUBLIC_URL =
     process.env.NEXT_PUBLIC_R2_PUBLIC_URL ||
@@ -191,7 +191,7 @@ export default function MissionDetailPage({
         </div>
 
         {/* Cards Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
           {/* Client Info Card */}
           <Card>
             <CardHeader>
@@ -338,29 +338,41 @@ export default function MissionDetailPage({
     .map((url) => (url.startsWith("http") ? url : `${R2_PUBLIC_URL}/${url}`));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-10">
       <div className="sticky top-0 z-10 -mt-6 -mb-2">
-        <div className="absolute inset-x-0 top-0 h-[116px] -z-10">
+        <div className="absolute inset-x-0 top-0 h-[180px] -z-10">
           <div className="w-full h-full bg-gradient-to-b from-background/80 to-background/40 backdrop-blur supports-[backdrop-filter]:backdrop-blur border-b border-border/60" />
         </div>
-        <div className="-mx-[calc(theme(spacing.8))] px-[calc(theme(spacing.8))] pt-4 pb-3">
-          <div className="flex items-start justify-between">
-            <div className="text-right">
-              <h1 className="text-3xl font-extrabold tracking-tight">פרטי משימה #{mission.id}</h1>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {mission.type}
-                {mission.subtype && ` - ${mission.subtype}`}
-              </p>
+        <div className="-mx-[calc(theme(spacing.8))] px-[calc(theme(spacing.8))] pt-6 pb-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-start">
+              <Button
+                variant="outline"
+                onClick={() => router.push(getBackUrl())}
+                className="rounded-full hover:scale-105 transition-transform duration-200 ease-in-out"
+              >
+                <ArrowRight className="ml-2 h-4 w-4" />
+                חזרה למשימות
+              </Button>
             </div>
-            <Button variant="outline" onClick={() => router.push(getBackUrl())} className="rounded-full">
-              <ArrowRight className="ml-2 h-4 w-4" />
-              חזרה למשימות
-            </Button>
+            <div className="flex items-start justify-between">
+              <div className="text-right">
+                <h1 className="text-3xl font-extrabold tracking-tight">
+                  פרטי משימה #{mission.id}
+                </h1>
+              </div>
+            </div>
           </div>
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Badge className={`${getStatusColor(mission.status)} px-3 py-1 rounded-full`}>
+          <div className="mt-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Badge
+                className={`${getStatusColor(mission.status)} px-3 py-1 rounded-full`}
+              >
                 {getStatusText(mission.status)}
+              </Badge>
+              <Badge variant="secondary" className="px-3 py-1 rounded-full">
+                {mission.type}
+                {mission.subtype ? ` • ${mission.subtype}` : ""}
               </Badge>
               {deliveredDate && (
                 <div className="text-sm text-muted-foreground">
@@ -368,14 +380,18 @@ export default function MissionDetailPage({
                 </div>
               )}
             </div>
-            <MissionActions mission={mission} onUpdate={fetchMission} showLabels={true} />
+            <MissionActions
+              mission={mission}
+              onUpdate={fetchMission}
+              showLabels={true}
+            />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* Client Information */}
-        <Card>
+        <Card className="h-full">
           <CardHeader>
             <CardTitle className="text-right flex items-center gap-2">
               <User className="h-5 w-5" />
@@ -429,7 +445,7 @@ export default function MissionDetailPage({
         </Card>
 
         {/* Mission Information */}
-        <Card>
+        <Card className="h-full">
           <CardHeader>
             <CardTitle className="text-right flex items-center gap-2">
               <Package className="h-5 w-5" />
@@ -576,7 +592,7 @@ export default function MissionDetailPage({
 
         {/* Package Images */}
         {packageImages.length > 0 && (
-          <Card className="lg:col-span-2">
+          <Card>
             <CardHeader>
               <CardTitle className="text-right flex items-center gap-2">
                 <Package className="h-5 w-5" />
@@ -603,7 +619,7 @@ export default function MissionDetailPage({
           </Card>
         )}
         {certificateImages.length > 0 && (
-          <Card className="lg:col-span-2">
+          <Card>
             <CardHeader>
               <CardTitle className="text-right flex items-center gap-2">
                 <Clipboard className="h-5 w-5" />

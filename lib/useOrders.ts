@@ -8,10 +8,20 @@ let fetching: Promise<Mission[]> | null = null
 const listeners: Array<(orders: Mission[]) => void> = []
 
 async function fetchOrders(): Promise<Mission[]> {
-  const res = await fetch("/api/orders")
-  if (!res.ok) throw new Error("Failed to fetch orders")
-  const result = await res.json()
-  return Array.isArray(result) ? result : result.data || []
+  try {
+    const res = await fetch("/api/orders")
+    if (!res.ok) {
+      if (res.status === 401) {
+        return []
+      }
+      throw new Error(`Failed to fetch orders: ${res.status}`)
+    }
+    const result = await res.json()
+    const orders = Array.isArray(result) ? result : result.data || []
+    return orders
+  } catch (error) {
+    return []
+  }
 }
 
 function notify(orders: Mission[]) {
@@ -43,6 +53,8 @@ export function useOrders(options?: { refreshInterval?: number }) {
       fetching = fetchOrders()
       const data = await fetching
       setCache(data)
+    } catch (error) {
+      setCache([])
     } finally {
       setLoading(false)
       fetching = null

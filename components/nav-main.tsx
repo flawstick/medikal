@@ -38,11 +38,14 @@ export function NavMain({ items }: { items: NavItem[] }) {
     <SidebarMenu ref={menuRef} className="relative">
       {activeRect && (
         <div
-          className="absolute bg-primary rounded-md transition-all duration-300 ease-in-out pointer-events-none"
+          className="absolute rounded-md transition-all duration-300 ease-in-out pointer-events-none shadow-sm ring-1 ring-primary/20"
           style={{
             width: activeRect.width,
             height: activeRect.height,
             transform: `translate(${activeRect.left}px, ${activeRect.top}px)`,
+            background:
+              "linear-gradient(135deg, hsl(var(--primary)/0.16), hsl(var(--primary)/0.08))",
+            backdropFilter: "saturate(140%) blur(2px)",
           }}
         />
       )}
@@ -63,16 +66,14 @@ export function NavMain({ items }: { items: NavItem[] }) {
               isActive={isActive}
               tooltip={item.title}
               className={`
-                justify-start text-right transition-colors relative z-10
-                transition-opacity
-                ${isActive
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "hover:bg-muted hover:text-foreground"}
+                justify-start text-right relative z-10 transition-colors
+                hover:bg-muted/60 hover:text-foreground
+                ${isActive ? "bg-muted/60 text-foreground" : "text-foreground/90"}
               `}
             >
-              <a href={item.url}>
-                <item.icon className="size-4" />
-                <span>{item.title}</span>
+              <a href={item.url} className="flex items-center gap-2">
+                <item.icon className={`size-4 ${isActive ? "text-primary" : "text-foreground/70"}`} />
+                <span className={isActive ? "font-medium" : ""}>{item.title}</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

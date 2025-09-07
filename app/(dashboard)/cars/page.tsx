@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { FlowButton } from "@/components/ui/flow-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -309,13 +310,14 @@ export default function CarsPage() {
     <div className="p-6 space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-right">ניהול רכבים</CardTitle>
+          <CardTitle className="text-right flex items-center gap-2">
+            <span>ניהול רכבים</span>
+          </CardTitle>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 ml-2" />
-                הוסף רכב חדש
-              </Button>
+              <div>
+                <FlowButton text="הוסף רכב חדש" iconRight={<Plus className="h-4 w-4" />} />
+              </div>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>

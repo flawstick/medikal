@@ -14,11 +14,11 @@ export default function DashboardLayout({
         <nav id="main-navigation" role="navigation" aria-label="ניווט ראשי">
           <AppSidebar />
         </nav>
-        <SidebarInset className="flex flex-col min-h-screen">
+        <SidebarInset className="flex flex-col h-screen overflow-hidden">
           <main
             id="main-content"
             role="main"
-            className="flex-1 space-y-4 p-8 pt-6"
+            className="flex-1 space-y-4 p-8 pt-6 overflow-y-auto"
           >
             {children}
           </main>

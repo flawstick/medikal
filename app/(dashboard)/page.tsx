@@ -1,11 +1,10 @@
 import { Suspense, lazy } from "react"
 import { DashboardStats } from "@/components/dashboard-stats"
 import { DashboardDeliveriesTable } from "@/components/dashboard-deliveries-table"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus } from "lucide-react"
 import Link from "next/link"
 import { CardLoadingSkeleton } from "@/components/loading-states"
+import { FlowButton } from "@/components/ui/flow-button"
 
 // Lazy load the chart component since it's heavy and not immediately visible
 const DeliveryAnalyticsChart = lazy(() => 
@@ -27,12 +26,9 @@ export default function Dashboard() {
       <div className="space-y-8 p-8 pt-6">
       <div className="flex items-center justify-between">
         <div></div>
-        <Button size="default" asChild>
-          <Link href="/upload">
-            <Plus className="ml-2 h-4 w-4" />
-            הזמנה חדשה
-          </Link>
-        </Button>
+        <Link href="/upload" className="inline-block">
+          <FlowButton text="הזמנה חדשה" />
+        </Link>
       </div>
 
       <DashboardStats />

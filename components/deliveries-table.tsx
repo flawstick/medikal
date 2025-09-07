@@ -80,6 +80,7 @@ interface DeliveriesTableProps {
   dateRange?: DateRange;
   initialPage?: number;
   onPageChange?: (page: number) => void;
+  onRefreshReady?: (refreshFn: () => Promise<void>) => void;
 }
 
 export function DeliveriesTable({
@@ -94,6 +95,7 @@ export function DeliveriesTable({
   dateRange,
   initialPage = 1,
   onPageChange,
+  onRefreshReady,
 }: DeliveriesTableProps) {
   const router = useRouter();
   // Cached group of pages data and total count
@@ -214,6 +216,16 @@ export function DeliveriesTable({
 
     return () => clearInterval(interval);
   }, []);
+
+  // Expose refresh function to parent component
+  useEffect(() => {
+    if (onRefreshReady) {
+      const refreshFn = async () => {
+        await fetchGroupData(false);
+      };
+      onRefreshReady(refreshFn);
+    }
+  }, [onRefreshReady]);
 
   // Fetch a batch of pages (group) from server
   const fetchGroupData = async (isPollingUpdate = false) => {
