@@ -358,7 +358,8 @@ export function MissionEditModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Basic Info */}
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
@@ -635,8 +636,8 @@ export function MissionEditModal({
           />
         </div>
 
-        {/* Certificates Section */}
-        <div className="flex-1 space-y-3 border rounded-lg p-3 bg-muted/20 min-h-0">
+            {/* Certificates Section */}
+            <div className="space-y-3 border rounded-lg p-3 bg-muted/20">
           <div className="flex items-center justify-between">
             <Button
               type="button"
@@ -661,7 +662,7 @@ export function MissionEditModal({
               <p className="text-xs">לחץ על "הוסף תעודה" כדי להתחיל</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-64 overflow-y-auto">
+            <div className="space-y-3">
               {formData.certificates.map((certificate, index) => (
                 <div
                   key={index}
@@ -758,6 +759,7 @@ export function MissionEditModal({
             </div>
           )}
         </div>
+      </div>
 
         <DialogFooter className="flex-row-reverse gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>

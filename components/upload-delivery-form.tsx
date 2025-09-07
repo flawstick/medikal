@@ -26,6 +26,8 @@ import {
   Trash2,
   Package,
   CalendarIcon,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -41,6 +43,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useRouter } from "next/navigation";
 import { toDateLocalString, fromDateLocalString } from "@/lib/date-helpers";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +63,7 @@ export function UploadDeliveryForm() {
   const [cars, setCars] = useState<Car[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [certificatesCollapsed, setCertificatesCollapsed] = useState(false);
   const [formData, setFormData] = useState({
     type: "משלוח",
     subtype: "",
@@ -361,7 +366,7 @@ export function UploadDeliveryForm() {
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto p-4 sm:p-6 lg:p-8">
+    <div className="max-w-[1200px] mx-auto -mt-4 p-4 sm:p-6 lg:p-8 pb-0">
       <div className="relative">
         <div className="absolute inset-0 -z-10 opacity-40 bg-gradient-to-tl from-primary/10 via-transparent to-purple-500/10 rounded-2xl blur-2xl" />
         <Card className="overflow-hidden backdrop-blur-sm border-border/60 shadow-lg" dir="rtl">
@@ -508,26 +513,46 @@ export function UploadDeliveryForm() {
                   </form>
 
                   <div className="mt-6">
-                    <div className="h-full rounded-xl border bg-muted/20 p-0">
+                    <Collapsible 
+                      open={!certificatesCollapsed} 
+                      onOpenChange={(open) => setCertificatesCollapsed(!open)}
+                      className="rounded-xl border bg-muted/20"
+                    >
                       <div className="flex items-center justify-between p-4 border-b bg-card/60">
-                        <h3 className="text-lg font-medium flex items-center gap-2">
-                          <Package className="h-5 w-5" />
-                          תעודות משלוח
-                        </h3>
-                        <Button type="button" size="sm" onClick={addCertificate}>
-                          <Plus className="h-4 w-4 mr-1" />
-                          הוסף
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <CollapsibleTrigger className="flex items-center gap-2 hover:bg-muted/50 rounded p-2 transition-colors">
+                            {certificatesCollapsed ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronUp className="h-4 w-4" />
+                            )}
+                            <h3 className="text-lg font-medium flex items-center gap-2">
+                              <Package className="h-5 w-5" />
+                              תעודות משלוח
+                            </h3>
+                          </CollapsibleTrigger>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {certificatesCollapsed && (
+                            <span className="text-sm text-muted-foreground">
+                              ({formData.certificates.length} תעודות)
+                            </span>
+                          )}
+                          <Button type="button" size="sm" onClick={addCertificate}>
+                            <Plus className="h-4 w-4 ml-1" />
+                            הוסף
+                          </Button>
+                        </div>
                       </div>
 
-                      {formData.certificates.length === 0 ? (
-                        <div className="text-center py-10 text-muted-foreground">
-                          <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">אין תעודות עדיין</p>
-                          <p className="text-xs">לחץ על "הוסף" כדי להתחיל</p>
-                        </div>
-                      ) : (
-                        <div className="max-h-[520px] overflow-y-auto">
+                      <CollapsibleContent>
+                        {formData.certificates.length === 0 ? (
+                          <div className="text-center py-10 text-muted-foreground">
+                            <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">אין תעודות עדיין</p>
+                            <p className="text-xs">לחץ על "הוסף" כדי להתחיל</p>
+                          </div>
+                        ) : (
                           <div className="divide-y">
                             {formData.certificates.map((certificate, index) => (
                               <div key={index} className="p-4">
@@ -586,9 +611,36 @@ export function UploadDeliveryForm() {
                               </div>
                             ))}
                           </div>
+                        )}
+                      </CollapsibleContent>
+
+                      {/* Collapsed scrollable view */}
+                      {certificatesCollapsed && formData.certificates.length > 0 && (
+                        <div className="border-t">
+                          <ScrollArea className="h-48 p-4">
+                            <div className="space-y-3">
+                              {formData.certificates.map((certificate, index) => (
+                                <div key={index} className="flex items-center justify-between p-3 bg-card rounded-lg border">
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => removeCertificate(index)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 justify-end">
+                                      <span className="text-xs text-muted-foreground">({certificate.packages_count || 0} חבילות)</span>
+                                      <span className="text-sm font-medium truncate">{certificate.certificate_number || "ללא מספר"}</span>
+                                      <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary ring-1 ring-inset ring-primary/20">#{index + 1}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1 truncate text-right">
+                                      {certificate.type === 'delivery' ? 'ת. משלוח' : certificate.type === 'return' ? 'ת. החזרה' : certificate.type || 'ללא סוג'}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
                         </div>
                       )}
-                    </div>
+                    </Collapsible>
                   </div>
 
                   <div className="mt-6">
