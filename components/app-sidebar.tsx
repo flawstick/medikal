@@ -1,7 +1,7 @@
 "use client"
 
 import type * as React from "react"
-import { Home, PackageIcon, Moon, Sun, Monitor, Users, Car, Settings } from "lucide-react"
+import { Home, PackageIcon, Moon, Sun, Monitor, Users, Car, Settings, FileText } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { NavMain } from "@/components/nav-main"
@@ -21,14 +21,21 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// Simplified data for Medi-Kal
+// Navigation data for Medi-Kal platform
 const mediKalData = {
   navMain: [
-    { title: "דשבורד", url: "/", icon: Home },
-    { title: "משימות", url: "/deliveries", icon: PackageIcon },
+    { title: "לוח בקרה", url: "/", icon: Home },
+    { title: "משלוחים", url: "/deliveries", icon: PackageIcon },
     { title: "נהגים", url: "/drivers", icon: Users },
     { title: "רכבים", url: "/cars", icon: Car },
-    { title: "דוחות רכב", url: "/car-reports", icon: Car },
+    { 
+      title: "דוחות", 
+      url: "#", 
+      icon: FileText,
+      items: [
+        { title: "דוחות רכב", url: "/car-reports" },
+      ]
+    },
   ],
 }
 

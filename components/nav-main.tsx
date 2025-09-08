@@ -3,17 +3,32 @@
 import type { LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+
+export interface NavSubItem {
+  title: string;
+  url: string;
+}
 
 export interface NavItem {
   title: string;
   url: string;
   icon: LucideIcon;
   isActive?: boolean;
+  items?: NavSubItem[];
 }
 
 export function NavMain({ items }: { items: NavItem[] }) {
@@ -50,15 +65,64 @@ export function NavMain({ items }: { items: NavItem[] }) {
         />
       )}
       {items.map((item) => {
-        const isActive =
-          item.url === "/"
-            ? pathname === "/"
-            : item.url === "/deliveries" && pathname === "/upload"
-              ? true
-              : item.url === "/car-reports" && pathname.startsWith("/car-reports")
-              ? true
-              : pathname.startsWith(item.url);
+        // Check if this item or any of its sub-items is active
+        const isItemActive = item.url === "/" ? pathname === "/" : pathname.startsWith(item.url);
+        const hasActiveSubItem = item.items?.some(subItem => 
+          subItem.url === "/deliveries" && pathname === "/upload" ? true :
+          subItem.url === "/car-reports" && pathname.startsWith("/car-reports") ? true :
+          pathname.startsWith(subItem.url)
+        );
+        const isActive = isItemActive || hasActiveSubItem;
 
+        // If item has sub-items, render as collapsible
+        if (item.items) {
+          return (
+            <Collapsible key={item.title} asChild defaultOpen={isActive} className="group/collapsible">
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    className={`
+                      justify-start text-right relative z-10 transition-colors
+                      hover:bg-muted/60 hover:text-foreground
+                      ${isActive ? "bg-muted/60 text-foreground" : "text-foreground/90"}
+                    `}
+                  >
+                    <item.icon className={`size-4 ${isActive ? "text-primary" : "text-foreground/70"}`} />
+                    <span className={isActive ? "font-medium" : ""}>{item.title}</span>
+                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {item.items.map((subItem) => {
+                      const isSubActive = 
+                        subItem.url === "/deliveries" && pathname === "/upload" ? true :
+                        subItem.url === "/car-reports" && pathname.startsWith("/car-reports") ? true :
+                        pathname.startsWith(subItem.url);
+                      
+                      return (
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton 
+                            asChild 
+                            isActive={isSubActive}
+                            className="text-right hover:bg-muted/60"
+                          >
+                            <a href={subItem.url}>
+                              <span className={isSubActive ? "font-medium" : ""}>{subItem.title}</span>
+                            </a>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      );
+                    })}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          );
+        }
+
+        // Regular item without sub-items
         return (
           <SidebarMenuItem key={item.title}>
             <SidebarMenuButton
