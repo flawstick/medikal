@@ -39,7 +39,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(data, { status: 200 });
+    return NextResponse.json({
+      data,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    }, { status: 200 });
   } catch (error) {
     console.error("Error fetching vehicle inspections:", error);
     return NextResponse.json(

@@ -58,8 +58,8 @@ export function CarReportsTable({
         }
 
         const data = await response.json();
-        setReports(data.data);
-        setTotalReports(data.pagination.total);
+        setReports(data.data || data || []);
+        setTotalReports(data.pagination?.total || 0);
       } catch (err: any) {
         setError(err.message);
       } finally {

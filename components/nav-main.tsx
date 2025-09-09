@@ -85,12 +85,12 @@ export function NavMain({ items }: { items: NavItem[] }) {
                     className={`
                       justify-start text-right relative z-10 transition-colors
                       hover:bg-muted/60 hover:text-foreground
-                      ${isActive ? "bg-muted/60 text-foreground" : "text-foreground/90"}
+                      ${isActive ? "bg-primary text-primary-foreground" : "text-foreground/90"}
                     `}
                   >
-                    <item.icon className={`size-4 ${isActive ? "text-primary" : "text-foreground/70"}`} />
+                    <item.icon className={`size-4 ${isActive ? "text-primary-foreground" : "text-foreground/70"}`} />
                     <span className={isActive ? "font-medium" : ""}>{item.title}</span>
-                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    <ChevronRight className="mr-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 rtl:rotate-180" />
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
@@ -132,11 +132,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
               className={`
                 justify-start text-right relative z-10 transition-colors
                 hover:bg-muted/60 hover:text-foreground
-                ${isActive ? "bg-muted/60 text-foreground" : "text-foreground/90"}
+                ${isActive ? "bg-primary text-primary-foreground" : "text-foreground/90"}
               `}
             >
               <a href={item.url} className="flex items-center gap-2">
-                <item.icon className={`size-4 ${isActive ? "text-primary" : "text-foreground/70"}`} />
+                <item.icon className={`size-4 ${isActive ? "text-primary-foreground" : "text-foreground/70"}`} />
                 <span className={isActive ? "font-medium" : ""}>{item.title}</span>
               </a>
             </SidebarMenuButton>

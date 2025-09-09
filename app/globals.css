@@ -4,13 +4,13 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 45 40% 96%;
     --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
+    --card: 45 40% 98%;
     --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
+    --popover: 45 40% 98%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 72.2% 50.6%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 85.7% 97.3%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
@@ -31,11 +31,11 @@
     --chart-5: 27 87% 67%;
 
     /* Sidebar Light Theme */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 0 0% 3.9%;
-    --sidebar-border: 0 0% 89.8%;
-    --sidebar-accent: 0 0% 96.1%;
-    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-background: 213 27% 90%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-border: 214 20% 82%;
+    --sidebar-accent: 212 25% 83%;
+    --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-primary: var(--primary);
     --sidebar-primary-foreground: var(--primary-foreground);
     --sidebar-ring: var(--ring);
@@ -52,7 +52,7 @@
     --card-foreground: 0 0% 95%;
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 95%;
-    --primary: 0 72.2% 50.6%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 85.7% 97.3%;
     --secondary: 0 0% 18%;
     --secondary-foreground: 0 0% 95%;
