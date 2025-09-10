@@ -10,7 +10,7 @@ const UploadDeliveryForm = lazy(() =>
 
 export default function UploadPage() {
   return (
-    <div className="min-h-full">
+    <div className="min-h-full pt-6">
       <Suspense fallback={<FormLoadingSkeleton />}>
         <UploadDeliveryForm />
       </Suspense>

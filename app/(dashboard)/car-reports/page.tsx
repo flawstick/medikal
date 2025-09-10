@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,14 +16,45 @@ import { Search, ArrowUpDown } from 'lucide-react';
 import { CarReportsTable } from '@/components/car-reports-table';
 
 export default function CarReportsPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('inspection_date');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Extract filters from URL params (matching deliveries pattern)
+  const searchQuery = searchParams.get("search") ?? "";
+  const sortBy = searchParams.get("sortBy") ?? "created_at";
+  const sortOrder = searchParams.get("sortOrder") ?? "desc";
+  const currentPage = parseInt(searchParams.get("page") || "1");
+
+  // Helper to update individual search params in URL (matching deliveries pattern)
+  const updateParam = useCallback((key: string, value?: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!value || value === "all") {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    // Reset page when changing filters
+    if (key !== "page") {
+      params.delete("page");
+    }
+    const queryString = params.toString();
+    router.push(`/car-reports${queryString ? `?${queryString}` : ""}`);
+  }, [searchParams, router]);
+
+  // Helper to update page parameter (matching deliveries pattern)
+  const updatePage = useCallback((page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (page <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", page.toString());
+    }
+    const queryString = params.toString();
+    router.push(`/car-reports${queryString ? `?${queryString}` : ""}`);
+  }, [searchParams, router]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-6">
       <div className="flex flex-col items-end gap-2 md:flex-row md:justify-between md:items-center">
         <div className="text-right">
           <h1 className="text-3xl font-bold tracking-tight">דוחות רכב</h1>
@@ -49,19 +81,20 @@ export default function CarReportsPage() {
                 placeholder="חפש לפי מספר רכב או שם נהג..."
                 className="pr-10 text-right"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => updateParam("search", e.target.value)}
               />
             </div>
 
             {/* Sort By and Sort Order */}
             <div className="flex gap-2 order-1 md:order-2 flex-wrap">
               {/* Sort By */}
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={sortBy} onValueChange={(value) => updateParam("sortBy", value)}>
                 <SelectTrigger className="w-40">
                   <ArrowUpDown className="h-4 w-4 ml-2" />
                   <SelectValue placeholder="מיון לפי" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="created_at">תאריך יצירה</SelectItem>
                   <SelectItem value="inspection_date">תאריך בדיקה</SelectItem>
                   <SelectItem value="vehicle_number">מספר רכב</SelectItem>
                   <SelectItem value="driver_name">שם נהג</SelectItem>
@@ -69,7 +102,7 @@ export default function CarReportsPage() {
               </Select>
 
               {/* Sort Order */}
-              <Select value={sortOrder} onValueChange={setSortOrder}>
+              <Select value={sortOrder} onValueChange={(value) => updateParam("sortOrder", value)}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -86,10 +119,9 @@ export default function CarReportsPage() {
             searchQuery={searchQuery}
             sortBy={sortBy}
             sortOrder={sortOrder}
-            page={page}
-            limit={limit}
+            initialPage={currentPage}
+            onPageChange={updatePage}
           />
-          {/* Pagination controls will be added here later */}
         </CardContent>
       </Card>
     </div>

@@ -18,7 +18,7 @@ export default function DashboardLayout({
           <main
             id="main-content"
             role="main"
-            className="flex-1 space-y-4 p-8 pt-6 overflow-y-auto"
+            className="flex-1 space-y-4 px-8 pb-8 overflow-y-auto"
           >
             {children}
           </main>

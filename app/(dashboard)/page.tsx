@@ -23,7 +23,7 @@ export default function Dashboard() {
         <div className="absolute right-[10%] bottom-[-15%] h-[40rem] w-[40rem] rounded-full bg-[radial-gradient(ellipse_at_center,theme(colors.emerald.400/.24),theme(colors.teal.400/.20),transparent_60%)] blur-[120px] dark:bg-[radial-gradient(ellipse_at_center,theme(colors.emerald.600/.12),theme(colors.teal.600/.08),transparent_60%)]" />
       </div>
 
-      <div className="space-y-8 p-8 pt-6">
+      <div className="space-y-8 pt-6">
       <div className="flex items-center justify-between">
         <div></div>
         <Link href="/upload" className="inline-block">

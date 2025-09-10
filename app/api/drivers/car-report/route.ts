@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { supabase } from "@/lib/supabase";
-import { VehicleInspection } from "@/lib/types";
+import { calculateReportStatus } from "@/lib/car-report-utils";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key";
 
@@ -50,60 +50,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body: VehicleInspection = await req.json();
+    const body = await req.json();
 
-    // Basic validation
-    if (!body.vehicleNumber || !body.driverSignature) {
+    // Basic validation - now metadata should contain all inspection data
+    if (!body.metadata) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing metadata field" },
         { status: 400 },
       );
     }
+
+    // Validate signature is present and is base64 encoded
+    if (!body.metadata.signature) {
+      return NextResponse.json(
+        { error: "Missing signature in metadata" },
+        { status: 400 },
+      );
+    }
+
+    // Basic validation for base64 data URL format (data:image/png;base64,...)
+    if (
+      !body.metadata.signature.startsWith("data:image/") ||
+      !body.metadata.signature.includes("base64,")
+    ) {
+      return NextResponse.json(
+        { error: "Invalid signature format - must be base64 encoded image" },
+        { status: 400 },
+      );
+    }
+
+    // Calculate status based on inspection results
+    const status = calculateReportStatus(body.metadata);
+    
+    // Add status to metadata
+    const metadataWithStatus = {
+      ...body.metadata,
+      status: status
+    };
 
     const { data, error } = await supabase
       .from("vehicle_inspections")
       .insert({
         driver_id: payload.driverId,
-        car_id: body.carId,
-        vehicle_number: body.vehicleNumber,
-        registration_number: body.registrationNumber,
-        driver_name: body.driverName,
-        inspection_date: body.inspectionDate,
-        inspection_time: body.inspectionTime,
-        odometer_reading: body.odometerReading,
-        engine_oil: body.engineOil,
-        coolant_water: body.coolantWater,
-        windshield_washer_fluid: body.windshieldWasherFluid,
-        battery: body.battery,
-        five_l_backup_fuses: body.fiveLBackupFuses,
-        tire_tool_kit: body.tireToolKit,
-        spare_tire: body.spareTire,
-        spare_tire_tool_kit: body.spareTireToolKit,
-        reflective_vest_50_percent: body.reflectiveVest50Percent,
-        reflective_triangle_50_percent: body.reflectiveTriangle50Percent,
-        first_aid_kit: body.firstAidKit,
-        fire_extinguisher: body.fireExtinguisher,
-        jack: body.jack,
-        tire_iron: body.tireIron,
-        spare_wheel: body.spareWheel,
-        spare_wheel_mounting_kit: body.spareWheelMountingKit,
-        safety_vest_qty_1: body.safetyVestQty1,
-        safety_vest_qty_2: body.safetyVestQty2,
-        safety_vest_qty_3: body.safetyVestQty3,
-        safety_vest_qty_4: body.safetyVestQty4,
-        safety_vest_qty_5: body.safetyVestQty5,
-        towing_hook_qty_1: body.towingHookQty1,
-        towing_hook_qty_2: body.towingHookQty2,
-        jumper_cables_qty_2: body.jumperCablesQty2,
-        wheel_chocks_qty_2: body.wheelChocksQty2,
-        cellphone_charger_qty_1: body.cellphoneChargerQty1,
-        paint_and_body: body.paintAndBody,
-        spare_keys: body.spareKeys,
-        vehicle_damage_diagram: body.vehicleDamageDiagram,
-        notes: body.notes,
-        events_obligating_reporting: body.eventsObligatingReporting,
-        driver_signature: body.driverSignature,
-        metadata: body.metadata,
+        car_id: body.car_id || null,
+        metadata: metadataWithStatus,
       })
       .select();
 

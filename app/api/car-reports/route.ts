@@ -5,31 +5,52 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
 
+    // Get query parameters (matching orders route pattern exactly)
     const search = searchParams.get("search");
-    const sortBy = searchParams.get("sortBy") || "inspection_date";
+    const sortBy = searchParams.get("sortBy") || "created_at";
     const sortOrder = searchParams.get("sortOrder") || "desc";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 100);
-    const offset = (page - 1) * limit;
 
+    // Start building the query
     let query = supabase
       .from("vehicle_inspections")
       .select("*", { count: "exact" });
 
+    // Apply search filter
     if (search && search.trim()) {
       const searchTerm = search.trim();
       query = query.or(
-        `vehicle_number.ilike.%${searchTerm}%,driver_name.ilike.%${searchTerm}%`,
+        `metadata->>vehicleNumber.ilike.%${searchTerm}%,metadata->>driverName.ilike.%${searchTerm}%`,
       );
     }
 
+    // Apply sorting
     const ascending = sortOrder === "asc";
-    query = query.order(sortBy, { ascending });
+    switch (sortBy) {
+      case "created_at":
+        query = query.order("created_at", { ascending });
+        break;
+      case "updated_at":
+        query = query.order("updated_at", { ascending });
+        break;
+      case "inspection_date":
+        query = query.order("metadata->>inspectionDate", { ascending });
+        break;
+      case "vehicle_number":
+        query = query.order("metadata->>vehicleNumber", { ascending });
+        break;
+      case "driver_name":
+        query = query.order("metadata->>driverName", { ascending });
+        break;
+      default:
+        query = query.order("created_at", { ascending: false });
+    }
 
-    const { data, error, count } = await query.range(
-      offset,
-      offset + limit - 1,
-    );
+    // Apply pagination
+    query = query.range((page - 1) * limit, page * limit - 1);
+
+    const { data, error, count } = await query;
 
     if (error) {
       console.error("Error fetching vehicle inspections:", error);
@@ -39,6 +60,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Return paginated response with metadata (matching orders route format exactly)
     return NextResponse.json({
       data,
       pagination: {

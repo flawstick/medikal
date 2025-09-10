@@ -374,7 +374,7 @@ export default function DriversPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="pt-6 space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-right flex items-center gap-2">
