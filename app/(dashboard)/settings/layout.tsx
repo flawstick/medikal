@@ -87,7 +87,7 @@ export default function SettingsLayout({
   )?.id || "profile"
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6 pt-4" dir="rtl">
       <div className="flex items-center gap-2">
         <SettingsIcon className="h-6 w-6" />
         <h1 className="text-3xl font-bold">הגדרות</h1>

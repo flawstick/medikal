@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, Plus } from "lucide-react";
 import Link from "next/link";
@@ -35,7 +35,9 @@ export default function DeliveriesPage() {
   }>({ show: false, mission: null });
 
   const [refreshing, setRefreshing] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const refreshFunctionRef = useRef<(() => Promise<void>) | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   const handleRefresh = async () => {
     if (refreshFunctionRef.current) {
@@ -58,6 +60,31 @@ export default function DeliveriesPage() {
   const dismissProblemAlert = () => {
     setProblemAlert({ show: false, mission: null });
   };
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // When the trigger element is not visible (above viewport), show blur
+        setIsScrolled(!entry.isIntersecting);
+      },
+      {
+        root: null, // viewport
+        rootMargin: '-1px 0px 0px 0px', // trigger when 1px above viewport
+        threshold: 0
+      }
+    );
+
+    const currentTrigger = triggerRef.current;
+    if (currentTrigger) {
+      observer.observe(currentTrigger);
+    }
+
+    return () => {
+      if (currentTrigger) {
+        observer.unobserve(currentTrigger);
+      }
+    };
+  }, []);
 
   // TODO: Re-enable realtime when WebSocket connectivity is resolved
   // Set up realtime subscription for problem status changes with fallback polling
@@ -113,8 +140,12 @@ export default function DeliveriesPage() {
         <div className="absolute left-[12%] bottom-[-12%] h-[52rem] w-[52rem] rounded-full bg-[radial-gradient(ellipse_at_center,theme(colors.amber.300/.18),theme(colors.orange.400/.14),transparent_65%)] blur-[140px] dark:bg-[radial-gradient(ellipse_at_center,theme(colors.amber.500/.10),theme(colors.orange.600/.08),transparent_65%)]" />
         <div className="absolute right-[8%] bottom-[-18%] h-[44rem] w-[44rem] rounded-full bg-[radial-gradient(ellipse_at_center,theme(colors.emerald.400/.18),theme(colors.teal.400/.14),transparent_65%)] blur-[140px] dark:bg-[radial-gradient(ellipse_at_center,theme(colors.emerald.600/.10),theme(colors.teal.600/.08),transparent_65%)]" />
       </div>
+      
+      {/* Intersection Observer trigger element */}
+      <div ref={triggerRef} className="h-1 w-full" />
+      
       <div className="sticky top-0 z-10 -mt-4 pb-3">
-        <div className="absolute inset-x-0 top-0 h-[88px] -z-10" />
+        <div className={`absolute inset-x-0 top-0 h-[88px] -z-10 transition-all duration-200 ${isScrolled ? 'bg-background/80 backdrop-blur-md' : 'bg-transparent'}`} />
         <div className="-mx-[calc(theme(spacing.8))] px-[calc(theme(spacing.8))] pt-4 pb-3 flex flex-col items-end gap-2 md:flex-row md:justify-between md:items-center">
           <div className="text-right">
             <h1 className="text-3xl font-extrabold tracking-tight">משלוחים</h1>
