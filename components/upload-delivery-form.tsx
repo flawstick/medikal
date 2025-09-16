@@ -42,6 +42,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -62,6 +70,8 @@ export function UploadDeliveryForm() {
   const [loading, setLoading] = useState(false);
   const [cars, setCars] = useState<Car[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [clientQuery, setClientQuery] = useState("");
   const [loadingData, setLoadingData] = useState(true);
   const [certificatesCollapsed, setCertificatesCollapsed] = useState(false);
   const [formData, setFormData] = useState({
@@ -74,6 +84,7 @@ export function UploadDeliveryForm() {
     car_number: "",
     driver_id: null as number | null,
     car_id: null as number | null,
+    client_id: null as number | null,
     date_expected: "",
     metadata: {
       client_name: "",
@@ -116,6 +127,42 @@ export function UploadDeliveryForm() {
 
     fetchCarsAndDrivers();
   }, [toast]);
+
+  // Initial load of clients
+  useEffect(() => {
+    const fetchInitialClients = async () => {
+      try {
+        const response = await fetch('/api/clients?status=active&limit=50');
+        if (response.ok) {
+          const clientsData = await response.json();
+          setClients(clientsData.data || clientsData);
+        }
+      } catch (error) {
+        console.error("Error fetching initial clients:", error);
+      }
+    };
+
+    fetchInitialClients();
+  }, []);
+
+  // Fetch clients for autocomplete
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const query = clientQuery.length >= 1 ? `query=${encodeURIComponent(clientQuery)}&` : '';
+        const response = await fetch(`/api/clients?${query}status=active&limit=50`);
+        if (response.ok) {
+          const clientsData = await response.json();
+          setClients(clientsData.data || clientsData);
+        }
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchClients, clientQuery.length === 0 ? 0 : 300);
+    return () => clearTimeout(debounceTimer);
+  }, [clientQuery]);
 
   useEffect(() => {
     const loadGoogleMapsScript = () => {
@@ -223,6 +270,31 @@ export function UploadDeliveryForm() {
   };
 
 
+  const createOrFindClient = async (clientName: string) => {
+    if (!clientName.trim()) return null;
+
+    try {
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: clientName.trim(),
+          phone: formData.metadata.phone_number,
+        }),
+      });
+
+      if (response.ok) {
+        const client = await response.json();
+        return client.id;
+      }
+    } catch (error) {
+      console.error("Error creating/finding client:", error);
+    }
+
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,6 +330,12 @@ export function UploadDeliveryForm() {
 
     setLoading(true);
 
+    // Create or find client if client_name is provided
+    let clientId = formData.client_id;
+    if (formData.metadata.client_name && !clientId) {
+      clientId = await createOrFindClient(formData.metadata.client_name);
+    }
+
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -274,6 +352,7 @@ export function UploadDeliveryForm() {
           },
           driver_id: formData.driver_id,
           car_id: formData.car_id,
+          client_id: clientId,
           driver: formData.driver && formData.driver !== "none" ? formData.driver : null,
           car_number: formData.car_number || null,
           date_expected: formData.date_expected ? fromDateLocalString(formData.date_expected) : null,
@@ -305,6 +384,7 @@ export function UploadDeliveryForm() {
           car_number: "",
           driver_id: null,
           car_id: null,
+          client_id: null,
           date_expected: "",
           metadata: {
             client_name: "",
@@ -425,8 +505,70 @@ export function UploadDeliveryForm() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2 md:order-1">
-                        <Label htmlFor="client_name" className="text-right block">שם לקוח (אופציונלי)</Label>
-                        <Input id="client_name" value={formData.metadata.client_name} onChange={(e) => setFormData((prev) => ({ ...prev, metadata: { ...prev.metadata, client_name: e.target.value } }))} placeholder="שם הלקוח" className="text-right" />
+                        <Label className="text-right block">שם לקוח (אופציונלי)</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" className="w-full justify-between text-right">
+                              {formData.metadata.client_name || "בחר או הקלד שם לקוח"}
+                              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                            <Command className="max-h-[300px]">
+                              <CommandInput
+                                placeholder="חפש לקוח או הקלד שם חדש..."
+                                value={clientQuery}
+                                onValueChange={setClientQuery}
+                                className="text-right border-none focus:ring-0 focus:ring-offset-0 focus:outline-none focus:border-none [&>input]:border-none [&>input]:focus:ring-0 [&>input]:focus:outline-none [&>input]:focus:border-none [&>input]:pr-2"
+                              />
+                              <CommandList className="max-h-[250px] overflow-y-auto">
+                                <CommandEmpty>
+                                  <Button
+                                    variant="ghost"
+                                    className="w-full text-right"
+                                    onClick={() => {
+                                      if (clientQuery.trim()) {
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          metadata: { ...prev.metadata, client_name: clientQuery.trim() }
+                                        }));
+                                        setClientQuery("");
+                                      }
+                                    }}
+                                  >
+                                    צור לקוח חדש: "{clientQuery}"
+                                  </Button>
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {clients.map((client) => (
+                                    <CommandItem
+                                      key={client.id}
+                                      value={client.name}
+                                      onSelect={() => {
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          client_id: client.id,
+                                          metadata: {
+                                            ...prev.metadata,
+                                            client_name: client.name,
+                                            phone_number: client.phone || prev.metadata.phone_number
+                                          }
+                                        }));
+                                        setClientQuery("");
+                                      }}
+                                      className="text-right"
+                                    >
+                                      <div className="flex-1 text-right">
+                                        <div className="font-medium">{client.name}</div>
+                                        {client.phone && <div className="text-sm text-muted-foreground">{client.phone}</div>}
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div className="space-y-2 md:order-2">
                         <Label htmlFor="phone_number" className="text-right block">מספר טלפון (אופציונלי)</Label>

@@ -1,7 +1,7 @@
 "use client"
 
 import type * as React from "react"
-import { Home, PackageIcon, Moon, Sun, Monitor, Users, Car, Settings, FileText } from "lucide-react"
+import { Home, PackageIcon, Moon, Sun, Monitor, Users, Car, Settings, FileText, UserCheck } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { NavMain } from "@/components/nav-main"
@@ -26,6 +26,7 @@ const mediKalData = {
   navMain: [
     { title: "לוח בקרה", url: "/", icon: Home },
     { title: "משלוחים", url: "/deliveries", icon: PackageIcon },
+    { title: "לקוחות", url: "/clients", icon: UserCheck },
     { title: "נהגים", url: "/drivers", icon: Users },
     { title: "רכבים", url: "/cars", icon: Car },
     { 
