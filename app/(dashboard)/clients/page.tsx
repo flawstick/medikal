@@ -93,6 +93,7 @@ export default function ClientsPage() {
   const [merging, setMerging] = useState(false);
   const [keepClientOpen, setKeepClientOpen] = useState(false);
   const [mergeClientOpen, setMergeClientOpen] = useState(false);
+  const [allClientsForMerge, setAllClientsForMerge] = useState<Client[]>([]);
   const [pagination, setPagination] = useState({
     page: 1,
     batchPage: 1, // Track which batch (100 clients) we're on
@@ -108,7 +109,7 @@ export default function ClientsPage() {
 
   useEffect(() => {
     fetchAllMissions();
-    fetchClientsBatch();
+    fetchClientsBatch(1, "", true);
   }, []);
 
   const fetchAllMissions = async () => {
@@ -127,17 +128,13 @@ export default function ClientsPage() {
         });
         setClientMissions(missionCounts);
 
-        // Re-sort current clients if they exist
-        if (allClients.length > 0) {
-          updateCurrentPageClients(allClients, currentPage);
-        }
       }
     } catch (error) {
       console.error("Error fetching missions:", error);
     }
   };
 
-  const fetchClientsBatch = async (batchPage = 1, query = "") => {
+  const fetchClientsBatch = async (batchPage = 1, query = "", isInitialLoad = false) => {
     try {
       setLoading(true);
 
@@ -158,15 +155,22 @@ export default function ClientsPage() {
         const fetchedClients = clientsData.data || clientsData;
 
         setAllClients(fetchedClients);
-        setPagination({
+        setPagination(prev => ({
           ...clientsData.pagination,
+          page: isInitialLoad ? 1 : prev.page, // Reset to page 1 only on initial load
           batchPage,
           totalPages: Math.ceil((clientsData.pagination?.total || 0) / CLIENTS_PER_PAGE)
-        });
+        }));
 
-        // Set first page of clients
-        setCurrentPage(1);
-        updateCurrentPageClients(fetchedClients, 1);
+        // Calculate which local page within the batch to show
+        const pagesPerBatch = BATCH_SIZE / CLIENTS_PER_PAGE;
+        const pageToShow = isInitialLoad ? 1 : currentPage;
+        const currentPageInBatch = ((pageToShow - 1) % pagesPerBatch) + 1;
+        updateCurrentPageClients(fetchedClients, currentPageInBatch);
+
+        if (isInitialLoad) {
+          setCurrentPage(1);
+        }
       } else {
         throw new Error('Failed to fetch clients');
       }
@@ -181,24 +185,11 @@ export default function ClientsPage() {
     }
   };
 
-  const updateCurrentPageClients = (allClientsData: Client[], page: number) => {
-    // Sort clients by mission count (most to least)
-    const sortedClients = [...allClientsData].sort((a, b) => {
-      const aMissions = clientMissions[a.id] || 0;
-      const bMissions = clientMissions[b.id] || 0;
-      return bMissions - aMissions; // Descending order (most to least)
-    });
-
-    const startIndex = (page - 1) * CLIENTS_PER_PAGE;
-    const endIndex = startIndex + CLIENTS_PER_PAGE;
-    const pageClients = sortedClients.slice(startIndex, endIndex);
-    setClients(pageClients);
-  };
 
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchClientsBatch(1, searchQuery);
+      fetchClientsBatch(1, searchQuery, true);
     }, 300);
 
     return () => clearTimeout(timer);
@@ -210,9 +201,11 @@ export default function ClientsPage() {
     const targetBatchPage = Math.ceil(newPage / pagesPerBatch);
 
     if (targetBatchPage !== pagination.batchPage) {
-      // Need to fetch new batch
-      setPaginationLoading(true);
+      // Need to fetch new batch - the fetchClientsBatch will handle setting the correct page
       fetchClientsBatch(targetBatchPage, searchQuery);
+      // Update the current page state immediately
+      setCurrentPage(newPage);
+      setPagination(prev => ({ ...prev, page: newPage }));
     } else {
       // Use existing data, just update page
       const localPageInBatch = ((newPage - 1) % pagesPerBatch) + 1;
@@ -278,6 +271,33 @@ export default function ClientsPage() {
       setMerging(false);
     }
   };
+
+  const updateCurrentPageClients = (allClientsData: Client[], page: number) => {
+    const startIndex = (page - 1) * CLIENTS_PER_PAGE;
+    const endIndex = startIndex + CLIENTS_PER_PAGE;
+    const pageClients = allClientsData.slice(startIndex, endIndex);
+    setClients(pageClients);
+  };
+
+  // Fetch all clients for merge dialog
+  const fetchAllClientsForMerge = async () => {
+    try {
+      const response = await fetch('/api/clients?status=active&limit=1000');
+      if (response.ok) {
+        const clientsData = await response.json();
+        setAllClientsForMerge(clientsData.data || clientsData);
+      }
+    } catch (error) {
+      console.error("Error fetching all clients for merge:", error);
+    }
+  };
+
+  // Load all clients when merge dialog opens
+  useEffect(() => {
+    if (mergeDialogOpen) {
+      fetchAllClientsForMerge();
+    }
+  }, [mergeDialogOpen]);
 
   if (loading) {
     return (
@@ -370,7 +390,7 @@ export default function ClientsPage() {
                         className="w-full justify-between bg-card"
                       >
                         {mergeData.keepClientId
-                          ? allClients.find((client) => client.id.toString() === mergeData.keepClientId)?.name
+                          ? allClientsForMerge.find((client) => client.id.toString() === mergeData.keepClientId)?.name
                           : "בחר לקוח ראשי..."}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -381,7 +401,7 @@ export default function ClientsPage() {
                         <CommandList>
                           <CommandEmpty>לא נמצא לקוח.</CommandEmpty>
                           <CommandGroup>
-                            {allClients.map((client) => (
+                            {allClientsForMerge.map((client) => (
                               <CommandItem
                                 key={client.id}
                                 value={client.name}
@@ -416,7 +436,7 @@ export default function ClientsPage() {
                         className="w-full justify-between bg-card"
                       >
                         {mergeData.mergeClientId
-                          ? allClients.find((client) => client.id.toString() === mergeData.mergeClientId)?.name
+                          ? allClientsForMerge.find((client) => client.id.toString() === mergeData.mergeClientId)?.name
                           : "בחר לקוח למיזוג..."}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -427,7 +447,7 @@ export default function ClientsPage() {
                         <CommandList>
                           <CommandEmpty>לא נמצא לקוח.</CommandEmpty>
                           <CommandGroup>
-                            {allClients
+                            {allClientsForMerge
                               .filter(client => client.id.toString() !== mergeData.keepClientId)
                               .map((client) => (
                               <CommandItem
